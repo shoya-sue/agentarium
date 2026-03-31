@@ -15,6 +15,8 @@ from typing import Optional
 OLLAMA_BASE_URL = "http://localhost:11434"
 MODEL = "qwen3.5:35b-a3b"
 FALLBACK_MODEL = "qwen3.5:4b"
+# Ollama に存在する代替モデル（qwen3.5 未インストール時に使用）
+AVAILABLE_FALLBACKS = ["gemma3:27b", "llama3.1:latest", "gemma3:latest"]
 
 JSON_PROMPT = """\
 以下の記事リストから、AIに関連するものを選択してJSON形式で回答してください。
@@ -138,13 +140,23 @@ def main() -> None:
     result = bench_speed(MODEL)
     if result is None:
         print(f"  {MODEL} が利用できません。{FALLBACK_MODEL} にフォールバックします。")
-        model_to_use = FALLBACK_MODEL
         result = bench_speed(FALLBACK_MODEL)
+        model_to_use = FALLBACK_MODEL
     else:
         model_to_use = MODEL
 
+    # Qwen3.5 系がどちらも未インストールなら、利用可能な代替モデルを試す
     if result is None:
-        print("ERROR: モデルが利用できません。`ollama pull` を実行してください。")
+        for alt in AVAILABLE_FALLBACKS:
+            print(f"  代替モデルで試行: {alt}")
+            result = bench_speed(alt)
+            if result is not None:
+                model_to_use = alt
+                print(f"  ※ これは暫定ベンチ。Phase 1 前に qwen3.5:35b-a3b のインストールが必要。")
+                break
+
+    if result is None:
+        print("ERROR: 利用可能なモデルが見つかりません。`ollama pull qwen3.5:35b-a3b` を実行してください。")
         return
 
     tps_ok = result.tokens_per_sec > 25

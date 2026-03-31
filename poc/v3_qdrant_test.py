@@ -78,10 +78,11 @@ def run_episodic_test(client) -> bool:  # type: ignore[no-untyped-def]
     write_ms = (time.perf_counter() - t0) * 1000
     print(f"  書き込み 10件: {write_ms:.1f}ms")
 
-    # 検索
+    # 検索（qdrant-client v1.x: query_points を使用）
     query_vec = random_vector(VECTOR_DIM)
     t0 = time.perf_counter()
-    results = client.search(collection_name=collection, query_vector=query_vec, limit=5)
+    response = client.query_points(collection_name=collection, query=query_vec, limit=5)
+    results = response.points
     search_ms = (time.perf_counter() - t0) * 1000
     print(f"  検索結果 {len(results)}件: {search_ms:.1f}ms")
 
@@ -126,16 +127,17 @@ def run_semantic_test(client) -> bool:  # type: ignore[no-untyped-def]
     client.upsert(collection_name=collection, points=points)
     print(f"  書き込み {len(points)}件")
 
-    # ペイロードフィルタ + 検索
+    # ペイロードフィルタ + 検索（qdrant-client v1.x: query_points を使用）
     t0 = time.perf_counter()
-    results = client.search(
+    response = client.query_points(
         collection_name=collection,
-        query_vector=random_vector(VECTOR_DIM),
+        query=random_vector(VECTOR_DIM),
         query_filter=Filter(
             must=[FieldCondition(key="lang", match=MatchValue(value="ja"))]
         ),
         limit=3,
     )
+    results = response.points
     search_ms = (time.perf_counter() - t0) * 1000
     print(f"  フィルタ検索 (lang=ja): {len(results)}件 {search_ms:.1f}ms")
 
