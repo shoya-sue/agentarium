@@ -1,0 +1,49 @@
+name: recall_related
+version: "1.0.0"
+category: memory
+phase: 1
+description: "クエリテキストを埋め込みベクトル化し、Qdrant semantic コレクションから関連記憶を検索する"
+
+input:
+  type: object
+  required: [query]
+  properties:
+    query:
+      type: string
+      description: "検索クエリテキスト（日本語・英語どちらも可）"
+    limit:
+      type: integer
+      default: 5
+      description: "取得する最大件数"
+    score_threshold:
+      type: number
+      default: 0.6
+      description: "類似度スコアの下限（0.0〜1.0）"
+    filter:
+      type: object
+      description: "Qdrant payload フィルタ（例: {topics: ['AI']}）"
+
+output:
+  type: array
+  items:
+    type: object
+    required: [point_id, score, payload]
+    properties:
+      point_id:
+        type: integer
+      score:
+        type: number
+        description: "コサイン類似度スコア（0.0〜1.0）"
+      payload:
+        type: object
+        description: "store_semantic で保存した payload"
+
+qdrant:
+  collection: "semantic"
+  embed_query: true           # クエリを埋め込みベクトル化して検索
+
+safety:
+  ref: "config/safety.yaml#skill_limits.recall_related"
+
+trace:
+  log_fields: [query, result_count, top_score, duration_ms]

@@ -1,0 +1,49 @@
+name: verify_x_session
+version: "1.0.0"
+category: browser
+phase: 1
+description: "X のセッションが有効かを確認し、ログアウト・CAPTCHA・警告を検出する"
+
+input:
+  type: object
+  properties:
+    cookies_file:
+      type: string
+      default: "data/browser-profile/cookies.json"
+      description: "セッション Cookie ファイルパス"
+
+output:
+  type: object
+  required: [valid, status]
+  properties:
+    valid:
+      type: boolean
+      description: "セッションが有効なら true"
+    status:
+      type: string
+      enum: [ok, logged_out, captcha, rate_limited, account_warning, unknown_error]
+    message:
+      type: string
+    checked_at:
+      type: string
+      format: date-time
+
+verification:
+  url: "https://x.com/home"
+  # セッション有効を示す DOM 要素
+  success_selector: "[data-testid='primaryColumn']"
+  # 問題を示す DOM 要素
+  failure_selectors:
+    logged_out: "[data-testid='loginButton']"
+    captcha: ".captcha-container, #arkose_iframe"
+    account_warning: "[data-testid='AccountSuspended'], [data-testid='AccountLocked']"
+
+safety:
+  ref: "config/safety.yaml#skill_limits.verify_x_session"
+  on_failure:
+    captcha: "emergency_stop"
+    account_warning: "emergency_stop"
+    logged_out: "skip_x_sources"
+
+trace:
+  log_fields: [valid, status, duration_ms]

@@ -1,0 +1,39 @@
+# X プラットフォーム専用 SafetyGuard
+# 参照: docs/2_x_browser_strategy.md
+
+session:
+  max_sessions_per_day: 6       # 1日の最大セッション数
+  session_interval_minutes: 60  # セッション間隔（最小）
+  max_duration_minutes: 30      # 1セッション最大時間
+
+actions:
+  timeline_scroll:
+    max_per_session: 20
+    delay_between_seconds: [3, 8]   # ランダム遅延範囲
+  search:
+    max_per_day: 5
+    delay_between_seconds: [30, 90]
+
+# Phase 1 では読取のみ。書き込み系は全て禁止
+prohibited_actions:
+  - "post_tweet"
+  - "like"
+  - "retweet"
+  - "follow"
+  - "unfollow"
+  - "dm"
+  - "reply"
+  - "quote_tweet"
+
+# 非活動時間帯（patrol.yaml の inactive_hours と同期）
+inactive_hours:
+  start: "02:00"
+  end: "06:00"
+
+# 緊急停止トリガー
+emergency_stop:
+  on_captcha: true           # CAPTCHA 検出で即停止
+  on_rate_limit: true        # レート制限で即停止
+  on_account_warning: true   # アカウント警告で即停止
+  on_login_required: true    # ログイン要求（セッション切れ）で即停止
+  cooldown_hours: 12         # 緊急停止後の再開待機時間

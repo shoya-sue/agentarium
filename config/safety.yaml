@@ -1,0 +1,56 @@
+# SafetyGuard 設定 — 全 Skill 共通
+# 参照: docs/1_plan.md Section 8
+
+circuit_breaker:
+  failure_threshold: 5      # 連続失敗数でサーキットブレーカー発動
+  recovery_timeout: 300     # 5分後に再試行
+
+# Skill ごとの実行上限
+skill_limits:
+  browse_source:
+    max_per_hour: 30
+    max_per_day: 200
+  fetch_rss:
+    max_per_hour: 60
+    max_per_day: 500
+  llm_call:
+    max_per_hour: 120
+    max_per_day: 1000
+  store_episodic:
+    max_per_hour: 200
+    max_per_day: 2000
+  store_semantic:
+    max_per_hour: 100
+    max_per_day: 500
+  recall_related:
+    max_per_hour: 200
+    max_per_day: 2000
+  parse_llm_output:
+    max_per_hour: 200
+    max_per_day: 2000
+  resolve_prompt:
+    max_per_hour: 200
+    max_per_day: 2000
+  human_behavior:
+    max_per_hour: 60
+    max_per_day: 300
+  verify_x_session:
+    max_per_hour: 6
+    max_per_day: 24
+
+# アクセス禁止リスト
+blacklist:
+  domains: []   # 例: ["malicious.com"]
+  urls: []      # 例: ["https://example.com/admin"]
+
+# 出力バリデーション
+output_validation:
+  max_content_length: 50000   # 1コンテンツの最大文字数
+  require_source_url: true    # ソース URL 必須
+  min_content_length: 10      # これ以下はスキップ
+
+# エラー時の動作
+on_error:
+  log_full_trace: true
+  notify_discord: false       # Phase 2 で有効化
+  stop_on_critical: true

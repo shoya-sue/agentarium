@@ -1,0 +1,45 @@
+name: fetch_rss
+version: "1.0.0"
+category: perception
+phase: 1
+description: "RSS/Atom フィードを取得してアイテムリストに変換する"
+
+input:
+  type: object
+  required: [feed_url]
+  properties:
+    feed_url:
+      type: string
+      description: "RSS/Atom フィードの URL"
+    max_items:
+      type: integer
+      default: 30
+    since_hours:
+      type: integer
+      default: 24
+      description: "何時間以内の記事を取得するか"
+
+output:
+  type: array
+  items:
+    type: object
+    required: [title, url, published_at]
+    properties:
+      title:
+        type: string
+      url:
+        type: string
+      summary:
+        type: string
+        description: "RSS のサマリー（description タグ）"
+      published_at:
+        type: string
+        format: date-time
+      feed_url:
+        type: string
+
+safety:
+  ref: "config/safety.yaml#skill_limits.fetch_rss"
+
+trace:
+  log_fields: [feed_url, result_count, duration_ms, error]

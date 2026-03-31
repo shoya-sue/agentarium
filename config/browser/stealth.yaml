@@ -1,0 +1,50 @@
+# Playwright Stealth 設定（rebrowser-playwright）
+# 参照: docs/2_x_browser_strategy.md
+# 注意: fingerprint の値は Phase 0 V6 で実マシンの値に合わせて更新すること
+
+fingerprint:
+  # WebGL / Canvas（Phase 0 V6 で実マシンの GPU 情報に更新）
+  webgl_vendor: "Google Inc. (Apple)"
+  webgl_renderer: "ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)"
+
+  # Navigator 偽装
+  platform: "MacIntel"
+  hardware_concurrency: 14    # M4 Pro の実コア数
+  device_memory: 8            # navigator.deviceMemory（最大 8GB と報告）
+  max_touch_points: 0         # デスクトップ = タッチなし
+
+  # スクリーン（実際の解像度に合わせること）
+  screen_width: 2560
+  screen_height: 1440
+  color_depth: 30
+
+browser:
+  # rebrowser-playwright の CDP 検出回避フラグ
+  args:
+    - "--disable-blink-features=AutomationControlled"
+    - "--no-sandbox"
+    - "--disable-setuid-sandbox"
+    - "--disable-dev-shm-usage"
+    - "--disable-accelerated-2d-canvas"
+    - "--no-first-run"
+    - "--no-zygote"
+    - "--disable-infobars"
+
+  # User-Agent（Phase 0 V6 で実ブラウザの値に更新すること）
+  user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
+  # タイムゾーン・ロケール
+  timezone: "Asia/Tokyo"
+  locale: "ja-JP"
+
+session:
+  storage_path: "data/browser-profile"    # セッション永続化ディレクトリ
+  cookies_file: "data/browser-profile/cookies.json"
+  save_on_close: true
+
+# Phase 0 V6 で実行する検証 URL
+detection_checks:
+  - url: "https://bot.sannysoft.com"
+    pass_condition: "全項目 green"
+  - url: "https://www.browserscan.net"
+    pass_condition: "No automation detected"

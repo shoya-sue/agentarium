@@ -1,0 +1,53 @@
+name: resolve_prompt
+version: "1.0.0"
+category: reasoning
+phase: 1
+description: "プロンプトテンプレート YAML を読み込み、変数を展開して messages 配列を生成する"
+
+input:
+  type: object
+  required: [template_name]
+  properties:
+    template_name:
+      type: string
+      description: "config/prompts/ 配下のテンプレート名（例: filter_relevance）"
+    variables:
+      type: object
+      description: "テンプレート内の変数（{variable_name} を置換）"
+    include_output_schema:
+      type: boolean
+      default: true
+      description: "output_schema を system プロンプトに自動挿入するか"
+
+output:
+  type: object
+  required: [messages]
+  properties:
+    messages:
+      type: array
+      description: "llm_call に渡す OpenAI 互換メッセージ配列"
+      items:
+        type: object
+        required: [role, content]
+        properties:
+          role:
+            type: string
+            enum: [system, user]
+          content:
+            type: string
+    template_name:
+      type: string
+    resolved_at:
+      type: string
+      format: date-time
+
+template:
+  system_dir: "config/prompts/system"
+  user_dir: "config/prompts/user"
+  schema_dir: "config/prompts/output_schema"
+
+safety:
+  ref: "config/safety.yaml#skill_limits.resolve_prompt"
+
+trace:
+  log_fields: [template_name, variables_count, duration_ms]

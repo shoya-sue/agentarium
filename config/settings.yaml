@@ -1,0 +1,49 @@
+# Agentarium メイン設定
+# 環境変数で上書き可能（.env 参照）
+
+agent:
+  name: "agentarium"
+  version: "0.1.0"
+  log_level: "${LOG_LEVEL:-INFO}"
+  data_dir: "data"
+
+ollama:
+  base_url: "${OLLAMA_BASE_URL:-http://localhost:11434}"
+  default_model: "qwen3.5:35b-a3b"
+  embed_model: "nomic-embed-text"  # Phase 0 で選定
+  num_ctx: 16384
+  timeout_seconds: 120
+
+qdrant:
+  host: "${QDRANT_HOST:-localhost}"
+  port: 6333
+  grpc_port: 6334
+  collections:
+    episodic: "episodic"
+    semantic: "semantic"
+    # procedural: "procedural"  # Phase 2 で追加
+    # character: "character"    # Phase 3 で追加
+
+browser:
+  remote_url: "${BROWSER_REMOTE_URL:-http://localhost:9222}"
+  headless: true
+  stealth_config: "config/browser/stealth.yaml"
+  screenshot_dir: "data/outputs/screenshots"
+
+characters:
+  - "config/characters/zephyr.yaml"
+  - "config/characters/lynx.yaml"
+
+schedules:
+  patrol: "config/schedules/patrol.yaml"
+
+skills:
+  base_path: "config/skills"
+
+safety:
+  general: "config/safety.yaml"
+  x_platform: "config/safety_x.yaml"
+
+llm:
+  routing: "config/llm/routing.yaml"
+  context_limits: "config/llm/context_limits.yaml"

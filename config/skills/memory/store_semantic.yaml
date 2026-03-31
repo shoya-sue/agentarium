@@ -1,0 +1,61 @@
+name: store_semantic
+version: "1.0.0"
+category: memory
+phase: 1
+description: "収集コンテンツを埋め込みベクトル化して Qdrant semantic コレクションに保存する"
+
+input:
+  type: object
+  required: [content, source_url]
+  properties:
+    content:
+      type: string
+      description: "保存するテキストコンテンツ"
+    source_url:
+      type: string
+    title:
+      type: string
+    topics:
+      type: array
+      items:
+        type: string
+      description: "extract_knowledge で抽出したトピックリスト"
+    importance_score:
+      type: number
+      description: "重要度スコア（0.0〜1.0）"
+    facts:
+      type: array
+      description: "extract_knowledge で抽出した事実リスト"
+
+output:
+  type: object
+  required: [point_id, stored_at]
+  properties:
+    point_id:
+      type: integer
+    stored_at:
+      type: string
+      format: date-time
+
+qdrant:
+  collection: "semantic"
+  vector_size: 768            # nomic-embed-text / multilingual-e5 の次元数
+  distance: "Cosine"
+  embed_field: "content"      # このフィールドを埋め込みベクトル化する
+  payload_fields:
+    - source_url
+    - title
+    - topics
+    - importance_score
+    - facts
+    - stored_at
+
+llm:
+  # store_semantic の前に extract_knowledge を実行してから呼び出す
+  prereq_skill: null          # 呼び出し元で extract_knowledge を実行すること
+
+safety:
+  ref: "config/safety.yaml#skill_limits.store_semantic"
+
+trace:
+  log_fields: [source_url, importance_score, point_id, duration_ms]

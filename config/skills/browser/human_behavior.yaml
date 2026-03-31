@@ -1,0 +1,50 @@
+name: human_behavior
+version: "1.0.0"
+category: browser
+phase: 1
+description: "人間らしいブラウザ操作（ランダム遅延・スクロール・マウス移動）を注入する"
+
+input:
+  type: object
+  required: [action]
+  properties:
+    action:
+      type: string
+      enum: [scroll, mouse_move, random_pause, click_with_delay]
+      description: "実行するヒューマナイズアクション"
+    target_selector:
+      type: string
+      description: "対象 CSS セレクタ（click_with_delay の場合）"
+    scroll_direction:
+      type: string
+      enum: [down, up]
+      default: "down"
+    scroll_distance_px:
+      type: integer
+      description: "スクロール量（省略時はランダム）"
+
+output:
+  type: object
+  required: [success, duration_ms]
+  properties:
+    success:
+      type: boolean
+    duration_ms:
+      type: integer
+    action_performed:
+      type: string
+
+behavior:
+  # ランダム遅延範囲（ミリ秒）
+  pause_range_ms: [500, 3000]
+  # スクロール速度（px/step）
+  scroll_step_range: [50, 200]
+  # マウス移動の bezier カーブ係数
+  mouse_curve_factor: 0.3
+
+safety:
+  ref: "config/safety.yaml#skill_limits.human_behavior"
+  # X 操作時は safety_x.yaml の delay も適用する
+
+trace:
+  log_fields: [action, duration_ms, success]

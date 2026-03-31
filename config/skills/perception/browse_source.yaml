@@ -1,0 +1,50 @@
+name: browse_source
+version: "1.0.0"
+category: perception
+phase: 1
+description: "ソースアダプタ設定（config/sources/）を読み込み、ブラウザまたは API でコンテンツを収集する"
+
+input:
+  type: object
+  required: [source_id]
+  properties:
+    source_id:
+      type: string
+      description: "config/sources/ 内のアダプタ設定 ID（例: hacker_news）"
+    max_items:
+      type: integer
+      default: 20
+      description: "取得する最大アイテム数"
+
+output:
+  type: array
+  items:
+    type: object
+    required: [title, url, source_id, fetched_at]
+    properties:
+      title:
+        type: string
+      url:
+        type: string
+      content:
+        type: string
+        description: "本文（取得できた場合）"
+      source_id:
+        type: string
+      fetched_at:
+        type: string
+        format: date-time
+
+adapter:
+  config_path: "config/sources/{source_id}.yaml"
+  # source YAML の type: フィールドに応じてアダプタを切り替える
+  # type: api       → HTTPClient アダプタ
+  # type: rss       → RSS パーサーアダプタ
+  # type: browser   → Playwright アダプタ
+  # type: browser_stealth → rebrowser-playwright アダプタ
+
+safety:
+  ref: "config/safety.yaml#skill_limits.browse_source"
+
+trace:
+  log_fields: [source_id, result_count, duration_ms, error]

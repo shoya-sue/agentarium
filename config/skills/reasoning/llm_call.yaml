@@ -1,0 +1,60 @@
+name: llm_call
+version: "1.0.0"
+category: reasoning
+phase: 1
+description: "Ollama または MLX 経由で LLM を呼び出し、生テキストレスポンスを返す"
+
+input:
+  type: object
+  required: [messages]
+  properties:
+    messages:
+      type: array
+      description: "OpenAI 互換メッセージ形式 [{role, content}]"
+      items:
+        type: object
+        required: [role, content]
+        properties:
+          role:
+            type: string
+            enum: [system, user, assistant]
+          content:
+            type: string
+    model:
+      type: string
+      description: "使用モデル（省略時は routing.yaml のデフォルト）"
+    temperature:
+      type: number
+      default: 0.7
+    max_tokens:
+      type: integer
+      description: "省略時は context_limits.yaml の reserved_for_output を使用"
+
+output:
+  type: object
+  required: [content, model, tokens_used]
+  properties:
+    content:
+      type: string
+      description: "LLM のレスポンステキスト"
+    model:
+      type: string
+    tokens_used:
+      type: object
+      properties:
+        prompt:
+          type: integer
+        completion:
+          type: integer
+        total:
+          type: integer
+
+llm:
+  backend: "ollama"           # ollama or mlx（Phase 0 で選定）
+  routing_ref: "config/llm/routing.yaml"
+
+safety:
+  ref: "config/safety.yaml#skill_limits.llm_call"
+
+trace:
+  log_fields: [model, tokens_used, duration_ms, error]

@@ -1,0 +1,46 @@
+name: parse_llm_output
+version: "1.0.0"
+category: reasoning
+phase: 1
+description: "LLM レスポンスから JSON を抽出・パースし、スキーマバリデーションを行う"
+
+input:
+  type: object
+  required: [raw_text]
+  properties:
+    raw_text:
+      type: string
+      description: "llm_call の output.content（生テキスト）"
+    expected_schema:
+      type: object
+      description: "期待する JSON スキーマ（config/prompts/output_schema/ の内容）"
+    fallback_value:
+      description: "パース失敗時のデフォルト値（null の場合はエラーを raise）"
+
+output:
+  type: object
+  required: [parsed, success]
+  properties:
+    parsed:
+      description: "パース済みの Python オブジェクト（dict/list）"
+    success:
+      type: boolean
+    error:
+      type: string
+      description: "パース失敗時のエラーメッセージ"
+    raw_json:
+      type: string
+      description: "抽出された JSON 文字列（デバッグ用）"
+
+parsing:
+  strategies:
+    - "direct_json"           # そのまま json.loads()
+    - "extract_code_block"    # ```json ... ``` ブロックから抽出
+    - "extract_first_object"  # 最初の { ... } を抽出
+  retry_with_llm: false       # Phase 2 で有効化（再試行プロンプト）
+
+safety:
+  ref: "config/safety.yaml#skill_limits.parse_llm_output"
+
+trace:
+  log_fields: [success, strategy_used, duration_ms, error]

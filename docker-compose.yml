@@ -1,0 +1,45 @@
+services:
+  # Qdrant ベクトルDB
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: agentarium-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - ./data/qdrant:/qdrant/storage
+    restart: unless-stopped
+
+  # Playwright Stealth ブラウザ（VNC 監視付き）
+  browser:
+    image: mcr.microsoft.com/playwright:v1.48.0-jammy
+    container_name: agentarium-browser
+    ports:
+      - "9222:9222"   # CDP（Chrome DevTools Protocol）
+      - "5900:5900"   # VNC（ブラウザ監視用）
+    environment:
+      - DISPLAY=:99
+    volumes:
+      - ./data/browser-profile:/browser-profile
+    command: >
+      bash -c "Xvfb :99 -screen 0 1280x720x24 &
+               x11vnc -display :99 -forever -nopw -quiet &
+               chromium-browser --remote-debugging-port=9222
+               --remote-debugging-address=0.0.0.0
+               --no-sandbox --disable-setuid-sandbox
+               --disable-blink-features=AutomationControlled
+               --user-data-dir=/browser-profile"
+    restart: unless-stopped
+
+  # 監視ダッシュボード（Phase 1 以降）
+  # dashboard:
+  #   build: ./dashboard
+  #   container_name: agentarium-dashboard
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - qdrant
+  #   restart: unless-stopped
+
+volumes:
+  qdrant_data:

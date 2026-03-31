@@ -1,0 +1,54 @@
+name: store_episodic
+version: "1.0.0"
+category: memory
+phase: 1
+description: "Skill 実行ログ・行動記録を Qdrant episodic コレクションに保存する"
+
+input:
+  type: object
+  required: [skill, source, result_count, duration_ms]
+  properties:
+    skill:
+      type: string
+      description: "実行した Skill 名"
+    source:
+      type: string
+      description: "情報源 ID（例: hacker_news）"
+    result_count:
+      type: integer
+    duration_ms:
+      type: integer
+    error:
+      type: string
+      description: "エラーメッセージ（成功時は null）"
+    metadata:
+      type: object
+      description: "Skill 固有の追加メタデータ"
+
+output:
+  type: object
+  required: [point_id, stored_at]
+  properties:
+    point_id:
+      type: integer
+    stored_at:
+      type: string
+      format: date-time
+
+qdrant:
+  collection: "episodic"
+  vector_field: null          # episodic は埋め込みなし（メタデータ検索のみ）
+  payload_fields:
+    - timestamp
+    - skill
+    - source
+    - result_count
+    - duration_ms
+    - error
+    - metadata
+
+safety:
+  ref: "config/safety.yaml#skill_limits.store_episodic"
+
+trace:
+  log_fields: [skill, source, point_id, duration_ms]
