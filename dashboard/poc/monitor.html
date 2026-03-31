@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentarium Monitor</title>
+<style>
+  :root {
+    --bg-base:    #0d1117;
+    --bg-panel:   #161b22;
+    --bg-item:    #1c2128;
+    --bg-hover:   #21262d;
+    --border:     #30363d;
+    --text-primary:   #e6edf3;
+    --text-secondary: #8b949e;
+    --text-muted:     #6e7681;
+    --green:  #3fb950;
+    --red:    #f85149;
+    --amber:  #d29922;
+    --blue:   #58a6ff;
+    --purple: #bc8cff;
+    --orange: #ffa657;
+    --teal:   #39d353;
+    --header-h: 56px;
+    --footer-h: 48px;
+    --left-w:  260px;
+    --right-w: 380px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP",
+                 Helvetica, Arial, sans-serif;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-size: 13px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ──────────────── ヘッダー ──────────────── */
+  header {
+    height: var(--header-h);
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 24px;
+    flex-shrink: 0;
+  }
+
+  header .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(63, 185, 80, 0.15);
+    border: 1px solid var(--green);
+    color: var(--green);
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .live-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: blink 1.4s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 20px;
+    margin-left: auto;
+  }
+
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+    font-size: 12px;
+  }
+
+  .stat-item strong {
+    color: var(--text-primary);
+    font-size: 14px;
+  }
+
+  .stat-item.error strong { color: var(--red); }
+
+  /* ──────────────── メインレイアウト ──────────────── */
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: var(--left-w) 1fr var(--right-w);
+    overflow: hidden;
+  }
+
+  /* ──────────────── パネル共通 ──────────────── */
+  .panel {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel:last-child { border-right: none; }
+
+  .panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
+  }
+
+  .panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+  }
+
+  .panel-body::-webkit-scrollbar { width: 4px; }
+  .panel-body::-webkit-scrollbar-track { background: transparent; }
+  .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ──────────────── 左パネル: スケジューラ ──────────────── */
+  .source-card {
+    background: var(--bg-item);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+
+  .source-card:last-of-type { margin-bottom: 0; }
+
+  .source-name {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+
+  .source-name .icon { font-size: 13px; }
+
+  .source-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.7;
+  }
+
+  .source-meta .time { color: var(--text-secondary); }
+
+  .progress-bar-wrap {
+    margin-top: 6px;
+    background: var(--bg-panel);
+    border-radius: 3px;
+    height: 4px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1s linear;
+  }
+
+  .progress-bar.ok     { background: var(--green); }
+  .progress-bar.warn   { background: var(--amber); }
+  .progress-bar.danger { background: var(--red); }
+
+  .section-title {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 10px 0 6px;
+  }
+
+  .qdrant-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+
+  .qdrant-row:last-child { border-bottom: none; }
+
+  .qdrant-count {
+    font-weight: 600;
+    color: var(--blue);
+  }
+
+  /* ──────────────── 中央パネル: タイムライン ──────────────── */
+  .timeline { padding: 0 4px; }
+
+  .time-group-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 8px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+  }
+
+  .time-group-label::before,
+  .time-group-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .trace-item {
+    background: var(--bg-item);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .trace-item:hover {
+    background: var(--bg-hover);
+    border-color: #484f58;
+  }
+
+  .trace-item.selected {
+    border-color: var(--blue);
+    background: rgba(88, 166, 255, 0.06);
+  }
+
+  .trace-item.running {
+    border-color: var(--amber);
+    background: rgba(210, 153, 34, 0.05);
+  }
+
+  .trace-item.running::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 60%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--amber), transparent);
+    animation: scan 1.6s linear infinite;
+  }
+
+  @keyframes scan {
+    0%   { left: -60%; }
+    100% { left: 110%; }
+  }
+
+  .trace-item.failure { border-color: rgba(248, 81, 73, 0.5); }
+
+  .trace-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .trace-time {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+
+  .trace-skill {
+    font-weight: 600;
+    font-size: 12px;
+    flex: 1;
+  }
+
+  .status-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+
+  .status-badge.success { background: rgba(63,185,80,.15); color: var(--green); }
+  .status-badge.failure { background: rgba(248,81,73,.15);  color: var(--red); }
+  .status-badge.running { background: rgba(210,153,34,.15); color: var(--amber); }
+  .status-badge.pending { background: rgba(110,118,129,.15); color: var(--text-muted); }
+
+  .trace-detail {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .trace-detail .adapter-tag {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 10px;
+  }
+
+  .dur-bar-wrap {
+    flex: 1;
+    background: var(--bg-panel);
+    border-radius: 3px;
+    height: 4px;
+    overflow: hidden;
+  }
+
+  .dur-bar {
+    height: 100%;
+    border-radius: 3px;
+  }
+
+  .dur-bar.fast   { background: var(--green); }
+  .dur-bar.medium { background: var(--amber); }
+  .dur-bar.slow   { background: var(--red); }
+
+  .dur-text {
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    min-width: 44px;
+    text-align: right;
+  }
+
+  /* ──────────────── 右パネル: LLM I/O ──────────────── */
+  .llm-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .llm-meta-item {
+    background: var(--bg-item);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+
+  .llm-meta-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 3px;
+  }
+
+  .llm-meta-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .llm-meta-value.purple { color: var(--purple); }
+  .llm-meta-value.blue   { color: var(--blue); }
+  .llm-meta-value.green  { color: var(--green); }
+
+  .io-section { margin-bottom: 12px; }
+
+  .io-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+
+  .copy-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 10px;
+    transition: border-color .15s, color .15s;
+  }
+  .copy-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+  .io-box {
+    background: var(--bg-item);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  .io-box .kw   { color: var(--blue); }
+  .io-box .str  { color: var(--green); }
+  .io-box .num  { color: var(--orange); }
+  .io-box .key  { color: var(--purple); }
+
+  .no-selection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .no-selection .icon { font-size: 36px; opacity: .4; }
+
+  /* ──────────────── フッター ──────────────── */
+  footer {
+    height: var(--footer-h);
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 16px;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .footer-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    flex-shrink: 0;
+  }
+
+  .footer-logs {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: hidden;
+  }
+
+  .log-line {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .log-line.error { color: var(--red); }
+  .log-line.warn  { color: var(--amber); }
+  .log-line.info  { color: var(--text-muted); }
+
+  /* ──────────────── スクロールアニメ ──────────────── */
+  .trace-item {
+    animation: fadeIn .3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ──────────────── POC バナー ──────────────── */
+  .poc-banner {
+    background: rgba(88, 166, 255, 0.08);
+    border-bottom: 1px solid rgba(88, 166, 255, 0.3);
+    padding: 6px 16px;
+    font-size: 11px;
+    color: var(--blue);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- ヘッダー -->
+<header>
+  <div class="logo">🤖 Agentarium Monitor</div>
+  <div class="live-badge"><span class="live-dot"></span> LIVE</div>
+  <div class="header-stats">
+    <div class="stat-item"><strong id="stat-total">0</strong> Skill 実行</div>
+    <div class="stat-item"><strong id="stat-running">0</strong> 実行中</div>
+    <div class="stat-item error"><strong id="stat-errors">0</strong> エラー</div>
+    <div class="stat-item"><strong id="stat-items">0</strong> 件取得</div>
+  </div>
+</header>
+
+<!-- POC バナー -->
+<div class="poc-banner">
+  ⚡ POC モード — モックデータで動作中。本実装では data/traces/ の SkillTrace JSON を SSE でリアルタイム配信します。
+</div>
+
+<!-- メイン -->
+<div class="main">
+
+  <!-- 左パネル: スケジューラ状態 -->
+  <div class="panel">
+    <div class="panel-header">📅 巡回スケジューラ</div>
+    <div class="panel-body" id="scheduler-panel">
+      <!-- JS で描画 -->
+    </div>
+  </div>
+
+  <!-- 中央パネル: Skill タイムライン -->
+  <div class="panel">
+    <div class="panel-header">⚡ Skill タイムライン
+      <span style="margin-left:auto;font-size:10px;font-weight:400;color:var(--text-muted)" id="trace-count">0 件</span>
+    </div>
+    <div class="panel-body">
+      <div class="timeline" id="timeline">
+        <!-- JS で描画 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 右パネル: LLM I/O -->
+  <div class="panel">
+    <div class="panel-header">🤖 LLM I/O ビューア</div>
+    <div class="panel-body" id="llm-panel">
+      <div class="no-selection">
+        <div class="icon">🤖</div>
+        <div>llm_call のトレースをクリックすると<br>プロンプトとレスポンスを表示します</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- フッター: エラーログ -->
+<footer>
+  <div class="footer-label">ログ</div>
+  <div class="footer-logs" id="footer-logs">
+    <div class="log-line info">起動中...</div>
+  </div>
+</footer>
+
+<script>
+// ──────────────────────────────────────────────────
+// モックデータ（実際の SkillTrace JSON フォーマットに準拠）
+// ──────────────────────────────────────────────────
+
+const SKILL_META = {
+  browse_source:    { icon: '🌐', color: '#58a6ff' },
+  fetch_rss:        { icon: '📡', color: '#58a6ff' },
+  llm_call:         { icon: '🤖', color: '#bc8cff' },
+  parse_llm_output: { icon: '⚙️', color: '#8b949e' },
+  store_episodic:   { icon: '💾', color: '#79c0ff' },
+  store_semantic:   { icon: '💾', color: '#79c0ff' },
+  recall_related:   { icon: '🔍', color: '#56d364' },
+  resolve_prompt:   { icon: '⚙️', color: '#8b949e' },
+  human_behavior:   { icon: '🖱', color: '#ffa657' },
+  verify_x_session: { icon: '🐦', color: '#1d9bf0' },
+};
+
+const MOCK_SCHEDULER = [
+  { source_id: 'hacker_news',    icon: '🟠', interval_min: 60,  last_run_min_ago: 15, failures: 0 },
+  { source_id: 'rss_feeds',      icon: '📡', interval_min: 60,  last_run_min_ago: 48, failures: 0 },
+  { source_id: 'github_trending',icon: '🐙', interval_min: 360, last_run_min_ago: 80, failures: 0 },
+  { source_id: 'yahoo_news',     icon: '📰', interval_min: 120, last_run_min_ago: 105, failures: 1 },
+  { source_id: 'google_news',    icon: '🔵', interval_min: 120, last_run_min_ago: 20, failures: 0 },
+  { source_id: 'newspicks',      icon: '📊', interval_min: 120, last_run_min_ago: 119, failures: 2 },
+];
+
+const MOCK_QDRANT = [
+  { name: 'episodic',   count: 1234 },
+  { name: 'semantic',   count: 567  },
+  { name: 'procedural', count: 0    },
+];
+
+// 初期トレース（時系列: 新しい順）
+const MOCK_TRACES_INIT = [
+  {
+    trace_id: 'tr-001', skill_name: 'browse_source',
+    status: 'success', started_at: rel(-5),
+    duration_ms: 245, result_count: 15,
+    input_params: { source_id: 'hacker_news', limit: 20 },
+    extra: { adapter: 'hacker_news' },
+  },
+  {
+    trace_id: 'tr-002', skill_name: 'llm_call',
+    status: 'success', started_at: rel(-4, 58),
+    duration_ms: 1240, result_count: 1,
+    input_params: { model: 'qwen3.5-35b-a3b', prompt_key: 'filter_relevance' },
+    extra: {
+      model: 'qwen3.5-35b-a3b',
+      prompt_tokens: 412, completion_tokens: 89,
+      tokens_per_second: 38.2,
+      prompt_text: 'System: あなたは情報フィルタリングの専門家です。以下のニュース記事を分析し、AIエージェント・機械学習・技術トレンドに関連する記事を選別してください。\n\nUser: [\n  {"title": "LLM-based autonomous agents survey", "url": "..."},\n  {"title": "New Rust async runtime released", "url": "..."},\n  {"title": "Claude 3.7 benchmark results", "url": "..."},\n  ...(15件)\n]',
+      response_text: '{\n  "relevant": [0, 2, 4, 7, 11],\n  "scores": [0.95, 0.91, 0.87, 0.76, 0.72],\n  "reason": "AI Agentおよびモデル評価に直接関連する記事を選別。Rustランタイムは技術系だが本Agentの関心領域外のため除外。"\n}',
+    },
+  },
+  {
+    trace_id: 'tr-003', skill_name: 'parse_llm_output',
+    status: 'success', started_at: rel(-4, 57),
+    duration_ms: 3, result_count: 1,
+    input_params: { strategy: 'direct_json' },
+    extra: { strategy_used: 'direct_json' },
+  },
+  {
+    trace_id: 'tr-004', skill_name: 'store_semantic',
+    status: 'success', started_at: rel(-4, 56),
+    duration_ms: 89, result_count: 5,
+    input_params: { collection: 'semantic' },
+    extra: { points_upserted: 5 },
+  },
+  {
+    trace_id: 'tr-005', skill_name: 'store_episodic',
+    status: 'success', started_at: rel(-4, 55),
+    duration_ms: 45, result_count: 1,
+    input_params: { collection: 'episodic' },
+    extra: { action: 'browse_source', source: 'hacker_news' },
+  },
+  {
+    trace_id: 'tr-006', skill_name: 'fetch_rss',
+    status: 'success', started_at: rel(-12),
+    duration_ms: 156, result_count: 23,
+    input_params: { feed_url: 'https://hnrss.org/frontpage' },
+    extra: { feed: 'hnrss' },
+  },
+  {
+    trace_id: 'tr-007', skill_name: 'browse_source',
+    status: 'failure', started_at: rel(-19),
+    duration_ms: 30012, result_count: 0,
+    input_params: { source_id: 'newspicks', limit: 10 },
+    extra: { adapter: 'newspicks', error_type: 'timeout' },
+    error: 'TimeoutError: 30s を超過しました (newspicks)',
+  },
+  {
+    trace_id: 'tr-008', skill_name: 'verify_x_session',
+    status: 'success', started_at: rel(-62),
+    duration_ms: 2340, result_count: 1,
+    input_params: { cookies_file: '/app/data/browser-profile/agent1/state.json' },
+    extra: { valid: true, status: 'ok' },
+  },
+  {
+    trace_id: 'tr-009', skill_name: 'browse_source',
+    status: 'success', started_at: rel(-63),
+    duration_ms: 8920, result_count: 22,
+    input_params: { source_id: 'github_trending', limit: 25 },
+    extra: { adapter: 'github_trending' },
+  },
+  {
+    trace_id: 'tr-010', skill_name: 'recall_related',
+    status: 'success', started_at: rel(-64),
+    duration_ms: 56, result_count: 5,
+    input_params: { query: '機械学習フレームワーク 2026', limit: 5 },
+    extra: { collection: 'semantic' },
+  },
+];
+
+// ──────────────────────────────────────────────────
+// ユーティリティ
+// ──────────────────────────────────────────────────
+
+function rel(minAgo = 0, secOffset = 0) {
+  const d = new Date(Date.now() - minAgo * 60000 - secOffset * 1000);
+  return d.toISOString();
+}
+
+function formatTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function formatDuration(ms) {
+  if (!ms) return '—';
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function durBarClass(ms) {
+  if (!ms) return 'fast';
+  if (ms < 1000) return 'fast';
+  if (ms < 5000) return 'medium';
+  return 'slow';
+}
+
+function durBarWidth(ms) {
+  if (!ms) return 5;
+  return Math.min(100, Math.log10(ms + 1) / Math.log10(31000) * 100);
+}
+
+function esc(str) {
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
+
+function syntaxJSON(raw) {
+  // 簡易シンタックスハイライト
+  return esc(raw)
+    .replace(/"([^"]+)":/g, '<span class="key">"$1"</span>:')
+    .replace(/: "([^"]+)"/g, ': <span class="str">"$1"</span>')
+    .replace(/: (\d+\.?\d*)/g, ': <span class="num">$1</span>')
+    .replace(/: (true|false|null)/g, ': <span class="kw">$1</span>');
+}
+
+// ──────────────────────────────────────────────────
+// 状態
+// ──────────────────────────────────────────────────
+
+let traces = [...MOCK_TRACES_INIT];
+let selectedTraceId = null;
+let totalItems = traces.reduce((s, t) => s + (t.result_count || 0), 0);
+let errorCount  = traces.filter(t => t.status === 'failure').length;
+
+// ──────────────────────────────────────────────────
+// 左パネル描画
+// ──────────────────────────────────────────────────
+
+function renderScheduler() {
+  const now = Date.now();
+  let html = '';
+
+  for (const src of MOCK_SCHEDULER) {
+    const elapsed = src.last_run_min_ago;
+    const pct = Math.min(100, Math.round(elapsed / src.interval_min * 100));
+    const remaining = src.interval_min - elapsed;
+    const barClass = pct >= 90 ? 'danger' : pct >= 70 ? 'warn' : 'ok';
+
+    const nextLabel = remaining <= 0
+      ? '<span style="color:var(--amber)">まもなく</span>'
+      : `<span class="time">${remaining}分後</span>`;
+
+    const failBadge = src.failures > 0
+      ? ` <span style="color:var(--red);font-size:10px">⚠️ ${src.failures}回失敗</span>`
+      : '';
+
+    html += `
+      <div class="source-card">
+        <div class="source-name">
+          <span class="icon">${src.icon}</span>
+          ${src.source_id}${failBadge}
+        </div>
+        <div class="source-meta">
+          最終: <span class="time">${src.last_run_min_ago}分前</span>
+          &nbsp;&nbsp;次回: ${nextLabel}
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar ${barClass}" style="width:${pct}%"></div>
+        </div>
+      </div>`;
+  }
+
+  // Qdrant
+  html += '<div class="section-title">🧠 Qdrant</div>';
+  for (const col of MOCK_QDRANT) {
+    html += `
+      <div class="qdrant-row">
+        <span style="color:var(--text-secondary)">${col.name}</span>
+        <span class="qdrant-count">${col.count.toLocaleString()}件</span>
+      </div>`;
+  }
+
+  document.getElementById('scheduler-panel').innerHTML = html;
+}
+
+// ──────────────────────────────────────────────────
+// タイムライン描画
+// ──────────────────────────────────────────────────
+
+function renderTimeline() {
+  const container = document.getElementById('timeline');
+  const sorted = [...traces].sort((a, b) =>
+    new Date(b.started_at) - new Date(a.started_at)
+  );
+
+  let html = '';
+  let lastMinute = null;
+
+  for (const t of sorted) {
+    const d = new Date(t.started_at);
+    const minute = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+
+    if (minute !== lastMinute) {
+      html += `<div class="time-group-label">${minute}</div>`;
+      lastMinute = minute;
+    }
+
+    const meta = SKILL_META[t.skill_name] || { icon: '⚡', color: '#8b949e' };
+    const isSelected = t.trace_id === selectedTraceId;
+    const isLlm = t.skill_name === 'llm_call';
+    const adapter = t.extra?.adapter || '';
+
+    const barW = durBarWidth(t.duration_ms);
+    const barC = durBarClass(t.duration_ms);
+
+    html += `
+      <div class="trace-item ${t.status} ${isSelected ? 'selected' : ''}"
+           onclick="selectTrace('${t.trace_id}')"
+           data-id="${t.trace_id}">
+        <div class="trace-header">
+          <span style="font-size:14px">${meta.icon}</span>
+          <span class="trace-time">${formatTime(t.started_at)}</span>
+          <span class="trace-skill" style="color:${meta.color}">${t.skill_name}</span>
+          ${adapter ? `<span class="adapter-tag">${adapter}</span>` : ''}
+          <span class="status-badge ${t.status}">${
+            t.status === 'success' ? '✅ 成功' :
+            t.status === 'failure' ? '❌ 失敗' :
+            t.status === 'running' ? '🔄 実行中' : '⏳ 待機'
+          }</span>
+        </div>
+        <div class="trace-detail">
+          ${t.result_count != null ? `<span>${t.result_count}件</span>` : ''}
+          <div class="dur-bar-wrap">
+            <div class="dur-bar ${barC}" style="width:${barW}%"></div>
+          </div>
+          <span class="dur-text">${formatDuration(t.duration_ms)}</span>
+          ${isLlm ? '<span style="color:var(--purple);font-size:10px">👆 クリックで I/O 確認</span>' : ''}
+        </div>
+        ${t.error ? `<div style="margin-top:6px;font-size:11px;color:var(--red);background:rgba(248,81,73,.08);padding:4px 8px;border-radius:4px">${esc(t.error)}</div>` : ''}
+      </div>`;
+  }
+
+  container.innerHTML = html;
+  document.getElementById('trace-count').textContent = `${traces.length} 件`;
+}
+
+// ──────────────────────────────────────────────────
+// LLM I/O パネル
+// ──────────────────────────────────────────────────
+
+function selectTrace(traceId) {
+  selectedTraceId = traceId;
+  const t = traces.find(x => x.trace_id === traceId);
+
+  // タイムライン選択状態更新
+  document.querySelectorAll('.trace-item').forEach(el => {
+    el.classList.toggle('selected', el.dataset.id === traceId);
+  });
+
+  if (!t || t.skill_name !== 'llm_call' || !t.extra?.prompt_text) {
+    document.getElementById('llm-panel').innerHTML = `
+      <div class="no-selection">
+        <div class="icon">${t ? SKILL_META[t.skill_name]?.icon || '⚡' : '🤖'}</div>
+        <div>${t ? `<strong>${t.skill_name}</strong><br>LLM I/O はありません` : 'トレースを選択してください'}</div>
+      </div>`;
+    return;
+  }
+
+  const ex = t.extra;
+  document.getElementById('llm-panel').innerHTML = `
+    <div class="llm-meta">
+      <div class="llm-meta-item">
+        <div class="llm-meta-label">モデル</div>
+        <div class="llm-meta-value purple" style="font-size:11px">${esc(ex.model || '—')}</div>
+      </div>
+      <div class="llm-meta-item">
+        <div class="llm-meta-label">速度</div>
+        <div class="llm-meta-value green">${ex.tokens_per_second?.toFixed(1) || '—'} tok/s</div>
+      </div>
+      <div class="llm-meta-item">
+        <div class="llm-meta-label">プロンプト</div>
+        <div class="llm-meta-value blue">${ex.prompt_tokens || '—'} tokens</div>
+      </div>
+      <div class="llm-meta-item">
+        <div class="llm-meta-label">レスポンス</div>
+        <div class="llm-meta-value blue">${ex.completion_tokens || '—'} tokens</div>
+      </div>
+    </div>
+
+    <div class="io-section">
+      <div class="io-label">
+        INPUT (プロンプト)
+        <button class="copy-btn" onclick="copyText(\`${(ex.prompt_text||'').replace(/`/g,'\\`')}\`)">コピー</button>
+      </div>
+      <div class="io-box">${esc(ex.prompt_text || '')}</div>
+    </div>
+
+    <div class="io-section">
+      <div class="io-label">
+        OUTPUT (レスポンス)
+        <button class="copy-btn" onclick="copyText(\`${(ex.response_text||'').replace(/`/g,'\\`')}\`)">コピー</button>
+      </div>
+      <div class="io-box">${syntaxJSON(ex.response_text || '')}</div>
+    </div>
+
+    <div style="font-size:10px;color:var(--text-muted);margin-top:4px">
+      trace_id: ${t.trace_id} &nbsp;|&nbsp; ${formatTime(t.started_at)} &nbsp;|&nbsp; ${formatDuration(t.duration_ms)}
+    </div>`;
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).catch(() => {});
+}
+
+// ──────────────────────────────────────────────────
+// フッターログ
+// ──────────────────────────────────────────────────
+
+const MOCK_LOGS = [
+  { level: 'error', msg: '15:01:44  browse_source › newspicks — TimeoutError: 30s を超過' },
+  { level: 'warn',  msg: '14:58:02  PatrolScheduler — yahoo_news 連続失敗 1回 (max: 2)' },
+  { level: 'info',  msg: '14:23:00  PatrolScheduler — hacker_news 巡回完了 15件取得' },
+];
+
+function renderFooter() {
+  const container = document.getElementById('footer-logs');
+  container.innerHTML = MOCK_LOGS
+    .map(l => `<div class="log-line ${l.level}">${esc(l.msg)}</div>`)
+    .join('');
+}
+
+// ──────────────────────────────────────────────────
+// ヘッダー統計
+// ──────────────────────────────────────────────────
+
+function updateStats() {
+  const running = traces.filter(t => t.status === 'running').length;
+  errorCount = traces.filter(t => t.status === 'failure').length;
+
+  document.getElementById('stat-total').textContent   = traces.length;
+  document.getElementById('stat-running').textContent  = running;
+  document.getElementById('stat-errors').textContent   = errorCount;
+  document.getElementById('stat-items').textContent    =
+    traces.reduce((s, t) => s + (t.result_count || 0), 0).toLocaleString();
+}
+
+// ──────────────────────────────────────────────────
+// シミュレーション: 新規トレースを追加
+// ──────────────────────────────────────────────────
+
+const SIM_QUEUE = [
+  { delay: 4000, trace: {
+    trace_id: 'tr-sim-1', skill_name: 'llm_call', status: 'running',
+    started_at: rel(0), duration_ms: null, result_count: null,
+    input_params: { model: 'qwen3.5-35b-a3b', prompt_key: 'extract_knowledge' },
+    extra: { model: 'qwen3.5-35b-a3b' },
+  }},
+  { delay: 7500, trace: {
+    trace_id: 'tr-sim-1', skill_name: 'llm_call', status: 'success',
+    started_at: rel(0), duration_ms: 3410, result_count: 1,
+    input_params: { model: 'qwen3.5-35b-a3b', prompt_key: 'extract_knowledge' },
+    extra: {
+      model: 'qwen3.5-35b-a3b',
+      prompt_tokens: 623, completion_tokens: 145, tokens_per_second: 42.5,
+      prompt_text: 'System: あなたは知識抽出の専門家です。ニュース記事から構造化された知識を抽出してください。\n\nUser: タイトル: "LLM-based autonomous agents survey"\n内容: 2026年のLLMエージェント研究の包括的サーベイ。ReAct/Reflexion/AutoGenなど主要フレームワークの比較...',
+      response_text: '{\n  "topic": "LLM Autonomous Agents",\n  "key_facts": [\n    "ReAct/Reflexion/AutoGenが主要フレームワーク",\n    "2026年時点で実用化フェーズに移行中",\n    "マルチエージェント協調が研究の主流"\n  ],\n  "confidence": 0.92,\n  "tags": ["LLM", "Agent", "Survey"]\n}',
+    },
+  }},
+  { delay: 8000, trace: {
+    trace_id: 'tr-sim-2', skill_name: 'store_semantic', status: 'running',
+    started_at: rel(0), duration_ms: null, result_count: null,
+    input_params: { collection: 'semantic' },
+    extra: {},
+  }},
+  { delay: 9200, trace: {
+    trace_id: 'tr-sim-2', skill_name: 'store_semantic', status: 'success',
+    started_at: rel(0), duration_ms: 1200, result_count: 3,
+    input_params: { collection: 'semantic' },
+    extra: { points_upserted: 3 },
+  }},
+];
+
+function runSimulation() {
+  for (const sim of SIM_QUEUE) {
+    setTimeout(() => {
+      const idx = traces.findIndex(t => t.trace_id === sim.trace.trace_id);
+      if (idx >= 0) {
+        traces[idx] = { ...sim.trace };
+      } else {
+        traces.unshift({ ...sim.trace });
+      }
+      renderTimeline();
+      updateStats();
+
+      // 選択中トレースが更新された場合 I/O パネルも更新
+      if (selectedTraceId === sim.trace.trace_id) {
+        selectTrace(sim.trace.trace_id);
+      }
+
+      // ログ追加
+      if (sim.trace.status === 'failure' && sim.trace.error) {
+        MOCK_LOGS.unshift({ level: 'error', msg: `${formatTime(sim.trace.started_at)}  ${sim.trace.skill_name} — ${sim.trace.error}` });
+        MOCK_LOGS.splice(3);
+        renderFooter();
+      }
+    }, sim.delay);
+  }
+
+  // スケジューラのプログレスバーを毎秒更新
+  setInterval(() => {
+    for (const src of MOCK_SCHEDULER) {
+      src.last_run_min_ago = Math.min(src.interval_min, src.last_run_min_ago + 1/60);
+    }
+    renderScheduler();
+  }, 1000);
+}
+
+// ──────────────────────────────────────────────────
+// 初期化
+// ──────────────────────────────────────────────────
+
+function init() {
+  renderScheduler();
+  renderTimeline();
+  renderFooter();
+  updateStats();
+  runSimulation();
+}
+
+init();
+</script>
+</body>
+</html>

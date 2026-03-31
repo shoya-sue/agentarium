@@ -36,7 +36,11 @@ class TestRecallRelatedSkill:
 
         skill = RecallRelatedSkill()
         mock_qdrant = MagicMock()
-        mock_qdrant.search = MagicMock(return_value=search_return_value)
+        # qdrant-client v1.17+ では query_points() が search() の代替
+        # QueryResponse.points にヒットリストが格納される
+        mock_response = MagicMock()
+        mock_response.points = search_return_value
+        mock_qdrant.query_points = MagicMock(return_value=mock_response)
         skill._qdrant = mock_qdrant
         return skill, mock_qdrant
 
@@ -92,11 +96,13 @@ class TestRecallRelatedSkill:
         mock_qdrant = MagicMock()
         captured_kwargs = {}
 
-        def mock_search(**kwargs):
+        def mock_query_points(**kwargs):
             captured_kwargs.update(kwargs)
-            return []
+            mock_response = MagicMock()
+            mock_response.points = []
+            return mock_response
 
-        mock_qdrant.search = mock_search
+        mock_qdrant.query_points = mock_query_points
         skill._qdrant = mock_qdrant
 
         with patch.object(skill, "_embed", new_callable=AsyncMock, return_value=[0.0] * 768):
@@ -114,11 +120,13 @@ class TestRecallRelatedSkill:
         mock_qdrant = MagicMock()
         captured_kwargs = {}
 
-        def mock_search(**kwargs):
+        def mock_query_points(**kwargs):
             captured_kwargs.update(kwargs)
-            return []
+            mock_response = MagicMock()
+            mock_response.points = []
+            return mock_response
 
-        mock_qdrant.search = mock_search
+        mock_qdrant.query_points = mock_query_points
         skill._qdrant = mock_qdrant
 
         with patch.object(skill, "_embed", new_callable=AsyncMock, return_value=[0.0] * 768):

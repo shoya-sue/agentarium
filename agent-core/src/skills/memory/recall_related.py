@@ -125,14 +125,17 @@ class RecallRelatedSkill:
         # Qdrant でコサイン類似度検索
         qdrant_filter = self._build_filter(filter_params)
 
-        results = self._qdrant.search(
+        # qdrant-client >= 1.7 では search() が廃止され query_points() に移行
+        # QueryResponse(.points) で ScoredPoint のリストを取得する
+        query_response = self._qdrant.query_points(
             collection_name=COLLECTION_NAME,
-            query_vector=query_vector,
+            query=query_vector,
             limit=limit,
             score_threshold=score_threshold,
             query_filter=qdrant_filter,
             with_payload=True,
         )
+        results = query_response.points
 
         output = [
             {
