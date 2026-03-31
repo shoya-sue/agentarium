@@ -3,9 +3,10 @@ skills/perception/browse_source.py — ソース情報収集 Skill
 
 config/sources/{source_id}.yaml の type フィールドに応じてアダプタを選択する。
 
-type: api          → HackerNewsAdapter
-type: rss          → RSSAdapter
-type: browser      → GitHubTrendingAdapter
+type: api             → HackerNewsAdapter  (HN Firebase API)
+type: rss             → RSSAdapter         (RSS/Atom フィード)
+type: browser         → NewsBrowserAdapter (汎用ブラウザ: yahoo_news/google_news/newspicks)
+type: browser_github  → GitHubTrendingAdapter (GitHub Trending 専用)
 type: browser_stealth → (Phase 1 では未使用、X は Phase 1 読み取り専用で保留)
 
 Skill の入力/出力スキーマは config/skills/perception/browse_source.yaml で定義。
@@ -23,6 +24,7 @@ from adapters import (
     HackerNewsAdapter,
     RSSAdapter,
     GitHubTrendingAdapter,
+    NewsBrowserAdapter,
 )
 from utils.config import load_yaml_config
 
@@ -30,10 +32,12 @@ logger = logging.getLogger(__name__)
 
 
 # source type → アダプタクラス のマッピング
+# source_id が "github_trending" の場合は browser_github として扱う
 _ADAPTER_REGISTRY: dict[str, type[BaseAdapter]] = {
     "api": HackerNewsAdapter,
     "rss": RSSAdapter,
-    "browser": GitHubTrendingAdapter,
+    "browser": NewsBrowserAdapter,          # 汎用ブラウザ（yahoo_news / google_news / newspicks 等）
+    "browser_github": GitHubTrendingAdapter, # GitHub Trending 専用（DOM セレクタが固有）
 }
 
 

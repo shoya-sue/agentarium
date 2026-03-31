@@ -1,6 +1,6 @@
 # GitHub Trending ソースアダプタ
 name: github_trending
-type: browser
+type: browser_github
 url: "https://github.com/trending"
 stealth_required: false
 always_active: true

@@ -51,6 +51,29 @@ services:
                --user-data-dir=/browser-profile"
     restart: unless-stopped
 
+  # Agent Core（Python 3.12 自律 Agent 本体）
+  agent-core:
+    build:
+      context: ./agent-core
+      dockerfile: Dockerfile
+    container_name: agentarium-agent-core
+    depends_on:
+      - qdrant
+      - embed
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - EMBED_URL=http://embed:8001
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./config:/app/config:ro          # 設定ファイル（読み取り専用）
+      - ./data:/app/data                 # 出力データ（読み書き）
+      - ./data/browser-profile:/app/data/browser-profile  # Cookie / セッション
+    restart: unless-stopped
+    # ホスト上の Ollama / MLX に接続するため extra_hosts が必要（Linux 環境）
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   # 監視ダッシュボード（Phase 1 以降）
   # dashboard:
   #   build: ./dashboard
