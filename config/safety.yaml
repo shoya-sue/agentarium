@@ -14,8 +14,10 @@ skill_limits:
     max_per_hour: 60
     max_per_day: 500
   llm_call:
-    max_per_hour: 120
-    max_per_day: 1000
+    # デュアルキャラクター対話: 各キャラ 3〜4 回 × 2 名 = 8 回以上/対話セッション
+    # 情報収集パイプライン（filter_relevance, extract_knowledge）も加算される
+    max_per_hour: 600
+    max_per_day: 5000
   store_episodic:
     max_per_hour: 200
     max_per_day: 2000

@@ -13,33 +13,48 @@ Agentarium は 2 つのキャラクターが常に対話しながら情報を処
 | **Zephyr**（ゼファー） | `config/characters/zephyr.yaml` | 探索・発見報告役 | 好奇心旺盛、高 openness (0.85)、発見をすぐ共有したがる |
 | **Lynx**（リンクス） | `config/characters/lynx.yaml` | 分析・懐疑的検証役 | 論理的・簡潔、高 conscientiousness (0.90)、根拠を必ず問う |
 
-### 対話フロー（概念）
+### 対話フロー（実装）
+
+各キャラクターは独立した LLM 呼び出しを **3〜4 回**行い、合計 **8 回以上/対話セッション** の LLM 呼び出しが発生する。
 
 ```
 [情報収集]
     │
     ▼
-Zephyr: 「この記事、すごく重要そうだ。LLM の新しい手法について書いてある」
+Zephyr（3〜4 llm_call）
+  ├─ Step 1: 記事を読んで第一印象を形成
+  ├─ Step 2: 重要性・関連性を自己評価
+  ├─ Step 3: Lynx への報告内容を整理
+  └─ Step 4: （必要に応じて）追加調査クエリを生成
     │
-    ▼
-Lynx:   「ソースは？査読済みか？既存手法との差は定量的に示されているか？」
+    ▼ Zephyr の報告を Lynx に渡す
     │
-    ▼
-Zephyr: 「arXiv のプレプリント。ベンチマーク比較が Section 4 にある」
-    │
-    ▼
-Lynx:   「再現性の記述はあるか？あるなら保存価値あり。なければ保留」
+Lynx（3〜4 llm_call）
+  ├─ Step 1: Zephyr の報告を受けてソース・根拠を評価
+  ├─ Step 2: 反論または補足すべき問いを生成
+  ├─ Step 3: 保存価値・重要度を判定
+  └─ Step 4: 最終判断（store_semantic / 棄却 / 保留）を下す
     │
     ▼
 [store_semantic / 棄却 の判断]
 ```
+
+**LLM 呼び出し数の見積もり（1 情報処理サイクル）**
+
+| フェーズ | 呼び出し数 |
+|---------|----------|
+| filter_relevance（情報収集後） | 1〜3 回（記事数による） |
+| extract_knowledge | 1〜3 回 |
+| Zephyr 対話ステップ | 3〜4 回 |
+| Lynx 対話ステップ | 3〜4 回 |
+| **合計（1サイクル）** | **8〜14 回** |
 
 ### フェーズ別実装計画
 
 | Phase | 実装内容 |
 |-------|---------|
 | **1** | 両キャラの L1+L6 を静的値で定義。対話は未実装（単一視点で出力） |
-| **2** | `character_dialogue` Skill 追加。2 キャラがプロンプト内で 1 往復対話して出力を決定 |
+| **2** | `character_dialogue` Skill 追加。各キャラが独立した LLM スクリプトで 3〜4 ステップ推論し対話 |
 | **3** | 感情・疲労状態を反映した動的対話。プラットフォーム別スタイル適応 |
 | **4** | Big Five ドリフト。対話の蓄積から関係性・信頼度が変化 |
 
@@ -57,7 +72,7 @@ Lynx:   「再現性の記述はあるか？あるなら保存価値あり。な
 | L6 Communication Style | **base のみ** | platform 適応 | emotion 修飾 | ✅ |
 
 Phase 1 で実装するもの:
-- `config/characters/agent_character.yaml` に L1 の `big_five` + `core_values` + L6 の `base` スタイルのみ定義
+- `config/characters/zephyr.yaml` / `lynx.yaml` に L1 の `big_five` + `core_values` + L6 の `base` スタイルのみ定義
 - キャラクター系 Skill（build_persona_context 等）は Phase 2 から
 - 感情 / 疲労 / ドリフトは全て Phase 3-4
 
