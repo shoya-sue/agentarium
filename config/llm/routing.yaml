@@ -1,0 +1,32 @@
+# LLM モデルルーティング設定
+# llm_call Skill が model="auto" で呼ばれた時に参照する
+
+routing_rules:
+  # --- 明示的ルール（Skill名で直接指定）---
+  explicit:
+    # Phase 2 で追加予定
+    # select_skill: qwen3.5-35b-a3b
+    # plan_task: qwen3.5-35b-a3b
+    # generate_goal: qwen3.5-35b-a3b
+    # reflect: qwen3.5-14b
+    # generate_response: qwen3.5-14b
+    # send_discord: qwen3.5-14b
+    # compress_memory: qwen3.5-14b
+
+    # Phase 1 で使用
+    store_semantic: qwen3.5-4b       # 知識抽出
+
+  # --- カテゴリベースのフォールバック ---
+  category_default:
+    reasoning: qwen3.5-35b-a3b       # 推論は大型モデル
+    character: qwen3.5-14b           # キャラクター応答は中型
+    perception: qwen3.5-4b           # 関連性判定等は軽量
+    memory: qwen3.5-4b               # 知識抽出等は軽量
+    action: null                      # Action Skill は基本的に LLM 不要
+    browser: null                     # Browser Skill は LLM 不要
+
+  # --- 最終フォールバック ---
+  default: qwen3.5-4b
+
+# --- 埋め込みモデル（Phase 0 で検証後に確定）---
+embedding_model: "nomic-embed-text"  # Phase 0 で multilingual-e5-base と比較検証

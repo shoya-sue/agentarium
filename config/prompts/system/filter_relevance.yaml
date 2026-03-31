@@ -1,0 +1,16 @@
+# 関連性判定 system prompt（Phase 1 で使用）
+# browse_source が収集した記事の関連性をLLMで判定する
+template_name: filter_relevance_system
+version: "1.0.0"
+description: "収集コンテンツのトピック関連性を判定する system prompt"
+
+content: |
+  あなたはコンテンツの関連性を判定するアシスタントです。
+  与えられたコンテンツが指定されたトピックに関連するか判定してください。
+  必ず JSON 形式で回答してください。
+
+  {output_schema}
+
+variables:
+  - name: output_schema
+    source: "config/prompts/output_schema/filter_relevance.yaml"

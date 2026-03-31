@@ -1,0 +1,24 @@
+# Yahoo! ニュース ソースアダプタ
+name: yahoo_news
+type: browser
+url: "https://news.yahoo.co.jp"
+stealth_required: false
+always_active: true
+
+extraction:
+  method: dom_parse
+  selectors:
+    article_container: ".newsFeed_item"
+    title: ".newsFeed_item_title"
+    url: "a[href]"
+    summary: ".newsFeed_item_sub"
+    category: ".newsFeed_item_media"
+  wait_for: "domcontentloaded"
+
+rate_limit:
+  max_per_hour: 2
+  min_interval_sec: 1800
+  cool_down_on_failure_sec: 120
+
+risk_level: none
+tags: [news, japan, always_active]

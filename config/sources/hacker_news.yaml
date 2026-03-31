@@ -1,0 +1,31 @@
+# Hacker News ソースアダプタ
+# Firebase API 経由（ブラウザ不要）
+name: hacker_news
+type: api
+url: "https://hacker-news.firebaseio.com/v0/"
+stealth_required: false
+always_active: true
+
+extraction:
+  method: api_json
+  endpoints:
+    top: "/topstories.json"
+    new: "/newstories.json"
+    best: "/beststories.json"
+  item_endpoint: "/item/{id}.json"
+  max_items: 30
+  fields:
+    title: "title"
+    url: "url"
+    score: "score"
+    author: "by"
+    comment_count: "descendants"
+    timestamp: "time"
+
+rate_limit:
+  max_per_hour: 4
+  min_interval_sec: 600
+  cool_down_on_failure_sec: 60
+
+risk_level: none
+tags: [tech, community, always_active]

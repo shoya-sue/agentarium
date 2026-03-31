@@ -1,0 +1,45 @@
+# X タイムライン ソースアダプタ
+# Phase 0 Go 判定後に patrol.yaml で enabled: true に変更
+name: x_timeline
+type: browser_stealth
+url: "https://x.com/home"
+stealth_required: true
+always_active: false      # Phase 0 Go/No-Go 判定次第
+
+extraction:
+  method: dom_parse
+  selectors:
+    post_container: "article[data-testid='tweet']"
+    author: "[data-testid='User-Name']"
+    content: "[data-testid='tweetText']"
+    timestamp: "time"
+    likes: "[data-testid='like'] span"
+    retweets: "[data-testid='retweet'] span"
+    replies: "[data-testid='reply'] span"
+  wait_for: "networkidle"
+
+  # スクロール設定（browse_source が human_behavior と連携して実行）
+  scroll:
+    max_scrolls: 30
+    collect_per_scroll: true
+
+# X 固有の安全設定
+safety:
+  verify_session_before: true     # 実行前に verify_x_session を呼ぶ
+  use_human_behavior: true        # 全操作に human_behavior を適用
+  max_session_duration_min: 45    # 1セッション最長45分
+
+rate_limit:
+  max_per_hour: 1
+  max_per_day: 6
+  min_interval_sec: 3600
+  cool_down_on_failure_sec: 21600  # 検出時6時間停止
+
+risk_level: high
+on_detection:
+  action: immediate_pause
+  cool_down_hours: 6
+  reduce_frequency: 0.5
+  notify: true
+
+tags: [x, stealth, high_risk]

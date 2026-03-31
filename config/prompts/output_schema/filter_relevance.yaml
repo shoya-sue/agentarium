@@ -1,0 +1,23 @@
+# 関連性判定の出力 JSON スキーマ
+schema:
+  type: object
+  required: [is_relevant, relevance_score, extracted_topics]
+  properties:
+    is_relevant:
+      type: boolean
+      description: "トピックに関連する場合 true"
+    relevance_score:
+      type: number
+      description: "関連度スコア（0.0〜1.0）"
+    extracted_topics:
+      type: array
+      items:
+        type: string
+      description: "コンテンツから抽出したトピック一覧"
+
+example: |
+  {
+    "is_relevant": true,
+    "relevance_score": 0.85,
+    "extracted_topics": ["AI agents", "autonomous systems", "LLM"]
+  }

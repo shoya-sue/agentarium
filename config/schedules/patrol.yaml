@@ -1,0 +1,69 @@
+# ルールベース巡回スケジュール（Phase 1）
+# Phase 2 で LLM 駆動の select_skill に移行予定
+
+# 巡回定義: 各ソースアダプタの実行間隔
+patrol:
+  # --- 常時稼働ソース ---
+  - source: hacker_news
+    interval_min: 60          # 1時間ごと
+    enabled: true
+
+  - source: rss_feeds
+    interval_min: 60          # 1時間ごと
+    enabled: true
+
+  - source: yahoo_news
+    interval_min: 120         # 2時間ごと
+    enabled: true
+
+  - source: google_news
+    interval_min: 120         # 2時間ごと
+    enabled: true
+
+  - source: newspicks
+    interval_min: 180         # 3時間ごと
+    enabled: true
+
+  - source: github_trending
+    interval_min: 360         # 6時間ごと
+    enabled: true
+
+  # --- X（Phase 0 Go 判定後に有効化）---
+  - source: x_timeline
+    interval_min: 180         # 3時間ごと
+    enabled: false            # Phase 0 Go 判定後に true に変更
+
+  - source: x_search
+    interval_min: 720         # 12時間ごと（1日5回上限の範囲内）
+    enabled: false
+
+# スケジューラ設定
+scheduler:
+  # 起動直後に全ソースを1回ずつ巡回
+  run_all_on_startup: true
+
+  # 巡回の実行順序（優先度順）
+  priority_order:
+    - rss_feeds             # 最も軽量（ブラウザ不要）
+    - hacker_news           # API（ブラウザ不要）
+    - yahoo_news            # ブラウザ（Stealth不要）
+    - google_news
+    - newspicks
+    - github_trending
+    - x_timeline            # ブラウザ（Stealth必要）— 最後に実行
+    - x_search
+
+  # 同時実行制御
+  max_concurrent: 1           # ブラウザを共有するため同時実行は 1
+  retry_on_failure: true
+  retry_delay_sec: 60
+  max_retries: 2
+
+  # 活動時間帯（日本時間）
+  # human_behavior.yaml の daily_active_hours と連動
+  active_hours:
+    - start: "07:00"
+      end: "01:00"
+  inactive_hours:
+    - start: "02:00"
+      end: "06:00"            # この時間帯は巡回しない

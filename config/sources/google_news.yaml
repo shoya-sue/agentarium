@@ -1,0 +1,24 @@
+# Google News ソースアダプタ
+name: google_news
+type: browser
+url: "https://news.google.com/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtcGhHZ0pLVUNnQVAB?hl=ja&gl=JP&ceid=JP:ja"
+stealth_required: false
+always_active: true
+
+extraction:
+  method: dom_parse
+  selectors:
+    article_container: "article"
+    title: "h3 a, h4 a"
+    url: "a[href]"
+    source: ".wEwyrc"
+    timestamp: "time"
+  wait_for: "domcontentloaded"
+
+rate_limit:
+  max_per_hour: 2
+  min_interval_sec: 1800
+  cool_down_on_failure_sec: 120
+
+risk_level: none
+tags: [news, tech, always_active]

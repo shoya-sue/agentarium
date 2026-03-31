@@ -1,0 +1,39 @@
+# X 検索 ソースアダプタ
+# Phase 0 Go 判定後に patrol.yaml で enabled: true に変更
+# 注意: Nikita Bier が「自動検索は検出される」と明言。極端に低頻度で運用
+name: x_search
+type: browser_stealth
+url: "https://x.com/search"
+stealth_required: true
+always_active: false
+
+extraction:
+  method: dom_parse
+  selectors:
+    post_container: "article[data-testid='tweet']"
+    author: "[data-testid='User-Name']"
+    content: "[data-testid='tweetText']"
+    timestamp: "time"
+  wait_for: "networkidle"
+
+parameters:
+  search_type: "latest"   # latest | top
+  # query は browse_source 呼び出し時に指定
+
+safety:
+  verify_session_before: true
+  use_human_behavior: true
+
+rate_limit:
+  max_per_hour: 1
+  max_per_day: 5            # 1日5回上限
+  min_interval_sec: 3600    # 最低1時間間隔
+  cool_down_on_failure_sec: 21600
+
+risk_level: critical        # 最高リスク
+on_detection:
+  action: immediate_pause
+  cool_down_hours: 6
+  notify: true
+
+tags: [x, stealth, critical_risk]

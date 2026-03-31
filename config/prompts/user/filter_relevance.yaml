@@ -1,0 +1,24 @@
+# 関連性判定 user message テンプレート
+template_name: filter_relevance_user
+version: "1.0.0"
+
+content: |
+  ## トピック
+  {topic_filter}
+
+  ## コンテンツ
+  タイトル: {title}
+  概要: {summary}
+  ソース: {source_name}
+
+  このコンテンツは上記トピックに関連しますか？
+
+variables:
+  - name: topic_filter
+    source: input.topic_filter
+  - name: title
+    source: item.title
+  - name: summary
+    source: item.summary
+  - name: source_name
+    source: input.source_name

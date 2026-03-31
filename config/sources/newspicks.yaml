@@ -1,0 +1,24 @@
+# NewsPicks ソースアダプタ
+name: newspicks
+type: browser
+url: "https://newspicks.com"
+stealth_required: false
+always_active: true
+
+extraction:
+  method: dom_parse
+  selectors:
+    article_container: ".news-card, [class*='NewsCard']"
+    title: ".news-card__title, [class*='title']"
+    url: "a[href]"
+    source: ".news-card__media"
+    pick_count: ".news-card__pick-count"
+  wait_for: "domcontentloaded"
+
+rate_limit:
+  max_per_hour: 1
+  min_interval_sec: 3600
+  cool_down_on_failure_sec: 120
+
+risk_level: none
+tags: [news, business, japan, always_active]

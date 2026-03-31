@@ -1,0 +1,48 @@
+# LLM コンテキスト長・トークン配分設定
+# build_llm_context Skill（Phase 2）が参照する
+# Phase 1 ではルールベーススケジューラのため、LLM コンテキスト管理は最小限
+
+context_limits:
+  qwen3.5-35b-a3b:
+    max_context: 16384
+    reserved_for_output: 4000
+    available_for_input: 12384
+    sections:
+      system_prompt: { max: 2000, priority: 1, compress: false }
+      current_state: { max: 500, priority: 2, compress: false }
+      recalled_memories: { max: 3000, priority: 3, compress: true }
+      available_skills: { max: 3000, priority: 4, compress: true }
+      persona: { max: 1000, priority: 5, compress: true }
+      extra: { max: 2884, priority: 6, compress: true }
+
+  qwen3.5-14b:
+    max_context: 16384
+    reserved_for_output: 4000
+    available_for_input: 12384
+    # 同様の配分（14B も 16K コンテキスト対応）
+
+  qwen3.5-4b:
+    max_context: 8192
+    reserved_for_output: 2000
+    available_for_input: 6192
+    sections:
+      system_prompt: { max: 1200, priority: 1, compress: false }
+      current_state: { max: 300, priority: 2, compress: false }
+      recalled_memories: { max: 1500, priority: 3, compress: true }
+      available_skills: { max: 1500, priority: 4, compress: true }
+      persona: { max: 500, priority: 5, compress: true }
+      extra: { max: 1192, priority: 6, compress: true }
+
+# Phase 1 圧縮戦略（2段階のみ）
+compression:
+  phase_1:
+    - step: 1
+      action: "available_skills から cooldown 中を除外"
+      target: available_skills
+    - step: 2
+      action: "recalled_memories の top_k を削減（10 → 5 → 3）"
+      target: recalled_memories
+  # Phase 2+ で追加:
+  # - persona を短縮版に切替
+  # - Skill の when_to_use を削除
+  # - system_prompt を短縮版に切替

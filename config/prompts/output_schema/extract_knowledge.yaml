@@ -1,0 +1,39 @@
+# 知識抽出の出力 JSON スキーマ
+schema:
+  type: object
+  required: [facts, topics, importance_score]
+  properties:
+    facts:
+      type: array
+      items:
+        type: object
+        properties:
+          content:
+            type: string
+            description: "抽出された事実・知見（1文）"
+          confidence:
+            type: number
+            description: "確信度（0.0〜1.0）"
+      description: "抽出された事実リスト"
+    topics:
+      type: array
+      items:
+        type: string
+      description: "関連トピック一覧"
+    importance_score:
+      type: number
+      description: "情報の重要度（0.0〜1.0）"
+    summary:
+      type: string
+      description: "コンテンツの1文要約"
+
+example: |
+  {
+    "facts": [
+      {"content": "Qwen3.5-35B-A3Bは262Kコンテキスト長をサポート", "confidence": 0.95},
+      {"content": "Gated DeltaNetアーキテクチャにより8Kトークン時の劣化が0.9%に改善", "confidence": 0.90}
+    ],
+    "topics": ["LLM", "Qwen", "MoE", "ローカルAI"],
+    "importance_score": 0.85,
+    "summary": "Qwen3.5はGated DeltaNetアーキテクチャを採用し、コンテキスト長と品質が大幅に向上"
+  }

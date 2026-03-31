@@ -1,0 +1,36 @@
+# RSS フィード ソースアダプタ
+# ブラウザ不要（HTTP 直接取得）
+name: rss_feeds
+type: rss
+stealth_required: false
+always_active: true
+
+feeds:
+  - url: "https://feeds.feedburner.com/TechCrunch"
+    category: tech
+    language: en
+  - url: "https://www.theverge.com/rss/index.xml"
+    category: tech
+    language: en
+  - url: "https://hnrss.org/frontpage"
+    category: tech_community
+    language: en
+  - url: "https://gigazine.net/news/rss_2.0/"
+    category: tech
+    language: ja
+  - url: "https://zenn.dev/feed"
+    category: tech
+    language: ja
+
+extraction:
+  method: rss_parse
+  max_items_per_feed: 20
+  since_hours: 24         # 直近24時間の記事のみ
+
+rate_limit:
+  max_per_hour: 10
+  min_interval_sec: 300
+  cool_down_on_failure_sec: 60
+
+risk_level: none
+tags: [rss, lightweight, always_active]

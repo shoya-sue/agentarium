@@ -1,0 +1,30 @@
+# GitHub Trending ソースアダプタ
+name: github_trending
+type: browser
+url: "https://github.com/trending"
+stealth_required: false
+always_active: true
+
+extraction:
+  method: dom_parse
+  selectors:
+    article_container: "article.Box-row"
+    title: "h2 a"
+    url: "h2 a[href]"
+    description: "p.col-9"
+    language: "[itemprop='programmingLanguage']"
+    stars_today: "span.d-inline-block.float-sm-right"
+  wait_for: "domcontentloaded"
+
+parameters:
+  language: ""          # 空 = 全言語
+  since: "daily"        # daily | weekly | monthly
+
+rate_limit:
+  max_per_hour: 1
+  max_per_day: 4
+  min_interval_sec: 3600
+  cool_down_on_failure_sec: 120
+
+risk_level: none
+tags: [tech, oss, trending, always_active]
