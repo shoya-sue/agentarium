@@ -1,4 +1,24 @@
 services:
+  # multilingual-e5-base 埋め込みサーバー
+  # Phase 0 V2 検証結果: Ollama nomic-embed-text は日英クロスリンガル不合格
+  # → sentence-transformers ベースの FastAPI サーバーとして分離（P0-U2 解決）
+  # API: POST http://localhost:8001/embed {"texts": [...]} → {"embeddings": [[...]], "dim": 768}
+  embed:
+    build:
+      context: ./embed
+      dockerfile: Dockerfile
+    container_name: agentarium-embed
+    ports:
+      - "8001:8001"
+    environment:
+      - MODEL_NAME=intfloat/multilingual-e5-base
+      - PORT=8001
+    volumes:
+      - embed_model_cache:/root/.cache/huggingface
+    restart: unless-stopped
+    # ビルド前に ./embed/ ディレクトリを作成すること
+    # Phase 1 着手時に実装: ./embed/Dockerfile + ./embed/server.py
+
   # Qdrant ベクトルDB
   qdrant:
     image: qdrant/qdrant:latest
@@ -43,3 +63,4 @@ services:
 
 volumes:
   qdrant_data:
+  embed_model_cache:   # multilingual-e5-base モデルキャッシュ（初回DL後は再利用）

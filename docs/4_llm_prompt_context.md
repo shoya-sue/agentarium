@@ -1,6 +1,6 @@
 # Part 4: LLM プロンプト / コンテキスト管理 詳細設計
 
-> **改訂**: 設計レビュー（6_decisions.md D1/D5/D6/D10）に基づき、LLM モデルを Qwen3.5-35B-A3B に更新、コンテキスト長を 16384+ に拡張、圧縮戦略を 2 段階に簡素化、埋め込みモデルを Phase 0 で検証。
+> **改訂**: 設計レビュー（6_decisions.md D1/D5/D6/D10）に基づき、LLM モデルを Qwen3.5-35B-A3B に更新、コンテキスト長を 16384+ に拡張、圧縮戦略を 2 段階に簡素化、埋め込みモデルを multilingual-e5-base に決定（Phase 0 検証済み）。
 
 ---
 
@@ -345,7 +345,7 @@ execution:
 risk_level: none
 on_failure: retry
 priority: 100
-phase: 1
+phase: 2
 tags: [reasoning, context, core]
 depends_on: [recall_related]
 ```
@@ -772,7 +772,7 @@ routing_rules:
   default: qwen3.5-4b
 
 # --- 埋め込み用（記憶の保存・検索）---
-embedding_model: 埋め込みモデル（Phase 0 で選定: nomic-embed-text or multilingual-e5-base）
+embedding_model: multilingual-e5-base
 ```
 
 ### 8.2 llm_call 内のモデル解決フロー
@@ -831,7 +831,7 @@ build_llm_context ←── resolve_prompt（テンプレート解決）
 
 | Skill 名 | カテゴリ | Phase | 備考 |
 |-----------|---------|-------|------|
-| `build_llm_context` | reasoning | 1 | LLM 呼び出し前の自動コンテキスト組立 |
+| `build_llm_context` | reasoning | 2 | LLM 呼び出し前の自動コンテキスト組立（Phase 2 移動 D4） |
 | `llm_call` | reasoning | 1 | Ollama への統一リクエスト |
 | `parse_llm_output` | reasoning | 1 | 3 段階 JSON パーサー |
 | `resolve_prompt` | reasoning | 1 | YAML テンプレート解決（内部 Skill） |
@@ -846,7 +846,7 @@ config/llm_context_limits.yaml     # 新規
 
 ### 10.3 Skill 総数の更新
 
-Phase 1: 16 → **20** Skill（コンテキスト管理 4 Skill 追加）
+Phase 1: **10** Skill（`select_skill`・`build_llm_context`・`plan_task` は D4 により Phase 2 に移動）
 全体: 33 → **38** Skill（コンテキスト管理 4 + キャラクター状態更新 1）
 
 ### 10.4 キャラクターフレームワークとの連携

@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+
+# 環境変数
+.env
+.env.*
+!.env.example
+
+# ブラウザセッション（機密情報）
+data/browser-profile/*/state.json
+data/browser-profile/poc/state.json
+
+# データ出力（大容量・再生成可能）
+data/qdrant/
+data/outputs/
+data/traces/
+data/pipelines/
+data/logs/
+
+# HuggingFace キャッシュ
+embed/.cache/
+
+# macOS
+.DS_Store

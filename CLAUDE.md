@@ -32,8 +32,8 @@ agentarium/
 ├── config/                    # INPUT: 全て YAML
 │   ├── settings.yaml
 │   ├── safety.yaml / safety_x.yaml
-│   ├── llm_routing.yaml
-│   ├── llm_context_limits.yaml
+│   ├── llm/routing.yaml
+│   ├── llm/context_limits.yaml
 │   ├── sources/               # ソースアダプタ設定（サイトごとのYAML）
 │   ├── skills/                # Skill定義（1ファイル=1Skill）
 │   ├── characters/            # キャラクター定義

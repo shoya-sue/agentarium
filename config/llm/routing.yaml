@@ -1,6 +1,23 @@
 # LLM モデルルーティング設定
 # llm_call Skill が model="auto" で呼ばれた時に参照する
 
+# --- Ollama 共通デフォルト ---
+# Phase 0 V1 検証結果: think=true はタイムアウト多発（476 tokens / 31秒）
+# think=false で安定動作（14 tokens / 1.1秒, 31.9 tok/s）
+ollama_defaults:
+  think: false             # Qwen3.5 の extended thinking を無効化（Phase 0 V1 必須判定）
+  timeout_seconds: 30      # think=false 前提の安全マージン
+  num_ctx: 16384           # OLLAMA_NUM_CTX と一致
+
+# Phase 2 での think=true 例外設定（複雑推論タスク向け、Phase 2 着手前に再検証）
+# ollama_overrides_phase2:
+#   select_skill:
+#     think: true
+#     timeout_seconds: 120
+#   plan_task:
+#     think: true
+#     timeout_seconds: 120
+
 routing_rules:
   # --- 明示的ルール（Skill名で直接指定）---
   explicit:
@@ -28,5 +45,14 @@ routing_rules:
   # --- 最終フォールバック ---
   default: qwen3.5-4b
 
-# --- 埋め込みモデル（Phase 0 で検証後に確定）---
-embedding_model: "nomic-embed-text"  # Phase 0 で multilingual-e5-base と比較検証
+# --- 埋め込みモデル（Phase 0 V2 検証済み）---
+# P0-U2 解決: sentence-transformers を FastAPI サーバーとして Docker コンテナ分離
+# POST http://embed:8001/embed  {"texts": [...]}  → {"embeddings": [[...]], "dim": 768}
+# ローカル直接実行時は http://localhost:8001/embed
+embedding_model: "intfloat/multilingual-e5-base"  # Phase 0 V2 検証済み（avg 0.810、768次元）
+embedding_server:
+  base_url: "http://embed:8001"    # Docker 内からのアクセス（サービス名解決）
+  local_url: "http://localhost:8001"  # ホスト直接実行時のフォールバック
+  endpoint: "/embed"
+  dim: 768
+  # 実装: ./embed/Dockerfile + ./embed/server.py（Phase 1 着手時に作成）

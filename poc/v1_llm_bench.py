@@ -41,11 +41,16 @@ class BenchResult:
     duration_ms: float
 
 
-def ollama_generate(prompt: str, model: str, stream: bool = False) -> dict:
+def ollama_generate(prompt: str, model: str, stream: bool = False, think: bool = False) -> dict:
+    """Ollama /api/generate を呼び出す。
+    think=False にすることで Qwen3.5 の extended thinking を無効化し、
+    推論トークンを削減してレスポンスを高速化する。
+    """
     payload = json.dumps({
         "model": model,
         "prompt": prompt,
         "stream": stream,
+        "think": think,                    # Qwen3.5 thinking モード制御
         "options": {"num_ctx": 4096},
     }).encode()
 

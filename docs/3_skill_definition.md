@@ -256,7 +256,7 @@ execution:
   max_retries: 1
   retry_delay_sec: 60
   requires: [browser, stealth]
-  model: qwen3-4b
+  model: qwen3.5-4b
   async: false
 
 rate_limit:
@@ -313,7 +313,7 @@ execution:
   timeout_sec: 180
   max_retries: 0
   requires: [browser, stealth]
-  model: qwen3-4b
+  model: qwen3.5-4b
   async: false
 
 rate_limit:
@@ -435,7 +435,7 @@ execution:
   max_retries: 2
   retry_delay_sec: 10
   requires: [browser]
-  model: qwen3-4b
+  model: qwen3.5-4b
   async: false
 
 rate_limit:
@@ -868,7 +868,7 @@ execution:
   timeout_sec: 15
   max_retries: 2
   requires: [qdrant]
-  model: qwen3-4b
+  model: qwen3.5-4b
   async: true
 
 risk_level: none
@@ -897,8 +897,8 @@ input:
   optional:
     collections:
       type: "list[str]"
-      default: ["episodic", "semantic", "procedural"]
-      description: "検索対象のコレクション"
+      default: ["episodic", "semantic"]
+      description: "検索対象のコレクション（Phase 1: episodic/semantic の 2 コレクションのみ）"
     top_k:
       type: int
       default: 5
@@ -973,13 +973,13 @@ execution:
   max_retries: 2
   retry_delay_sec: 3
   requires: [ollama]
-  model: qwen3-30b-a3b
+  model: qwen3.5-35b-a3b
   async: false
 
 risk_level: none
 on_failure: retry
 priority: 100
-phase: 1
+phase: 2
 tags: [reasoning, core, autonomous]
 depends_on: []
 ```
@@ -1022,13 +1022,13 @@ execution:
   timeout_sec: 30
   max_retries: 1
   requires: [ollama]
-  model: qwen3-30b-a3b
+  model: qwen3.5-35b-a3b
   async: false
 
 risk_level: none
 on_failure: retry
 priority: 95
-phase: 1
+phase: 2
 tags: [reasoning, planning, autonomous]
 depends_on: [recall_related]
 ```
@@ -1176,21 +1176,21 @@ Phase 2 の Skill は概要レベルで定義。Phase 1 完了後に詳細化す
 
 | Skill 名 | 概要 | model | 主な input | 主な output |
 |-----------|------|-------|-----------|------------|
-| `browse_x_profile` | 特定ユーザーのプロフィール・投稿を収集 | qwen3-4b | username | profile, posts |
-| `browse_tech_feed` | 技術ブログ群の巡回 | qwen3-4b | site_list | articles |
-| `monitor_diff` | ページの前回スナップショットとの差分検知 | qwen3-4b | url | diff_summary, changed |
+| `browse_x_profile` | 特定ユーザーのプロフィール・投稿を収集 | qwen3.5-4b | username | profile, posts |
+| `browse_tech_feed` | 技術ブログ群の巡回 | qwen3.5-4b | site_list | articles |
+| `monitor_diff` | ページの前回スナップショットとの差分検知 | qwen3.5-4b | url | diff_summary, changed |
 | `fill_form` | フォーム入力（検索ボックス等） | — | selectors, values | success |
-| `store_procedural` | 成功した Skill 実行シーケンスをパターンとして保存 | qwen3-4b | skill_sequence, success_rate | stored |
-| `compress_memory` | 古い記憶の要約・統合 | qwen3-14b | collection, older_than_days | compressed_count |
+| `store_procedural` | 成功した Skill 実行シーケンスをパターンとして保存 | qwen3.5-4b | skill_sequence, success_rate | stored |
+| `compress_memory` | 古い記憶の要約・統合 | qwen3.5-14b | collection, older_than_days | compressed_count |
 | `forget_low_value` | importance_score が低い記憶の削除 | — | threshold, collection | deleted_count |
-| `reflect` | 直近の行動を振り返り、改善点を抽出 | qwen3-14b | recent_actions | insights, adjustments |
-| `evaluate_importance` | 情報の重要度をスコアリング | qwen3-4b | content, context | importance_score |
-| `send_discord` | Discord チャンネルにメッセージ送信 | qwen3-14b | channel_id, message | sent |
+| `reflect` | 直近の行動を振り返り、改善点を抽出 | qwen3.5-14b | recent_actions | insights, adjustments |
+| `evaluate_importance` | 情報の重要度をスコアリング | qwen3.5-4b | content, context | importance_score |
+| `send_discord` | Discord チャンネルにメッセージ送信 | qwen3.5-14b | channel_id, message | sent |
 | `build_persona_context` | キャラクタープロファイルからプロンプト用コンテキストを構築 | — | character_yaml | persona_context |
-| `generate_response` | キャラクター性のある応答を生成 | qwen3-14b | query, persona_context, memories | response |
-| `select_skill` | 現在の状況を分析し、次に実行すべきSkillを選択する（**Phase 2移動 D4**） | qwen3-30b-a3b | current_state, available_skills | selected_skill, parameters |
+| `generate_response` | キャラクター性のある応答を生成 | qwen3.5-14b | query, persona_context, memories | response |
+| `select_skill` | 現在の状況を分析し、次に実行すべきSkillを選択する（**Phase 2移動 D4**） | qwen3.5-35b-a3b | current_state, available_skills | selected_skill, parameters |
 | `build_llm_context` | LLM 呼び出し用のコンテキストを構築する（**Phase 2移動 D4**） | — | memories, persona, task | context |
-| `plan_task` | 高レベルの目標を具体的なSkill実行シーケンスに分解する（**Phase 2移動 D4**） | qwen3-30b-a3b | goal, constraints | plan |
+| `plan_task` | 高レベルの目標を具体的なSkill実行シーケンスに分解する（**Phase 2移動 D4**） | qwen3.5-35b-a3b | goal, constraints | plan |
 
 ---
 
@@ -1198,11 +1198,11 @@ Phase 2 の Skill は概要レベルで定義。Phase 1 完了後に詳細化す
 
 | Skill 名 | 概要 | model | 備考 |
 |-----------|------|-------|------|
-| `post_x` | X に投稿する | qwen3-14b | Bot ラベル付きアカウント推奨。Phase 0 の X 判定結果に依存 |
-| `reply_x` | X の投稿にリプライする | qwen3-14b | 同上 |
-| `generate_goal` | 自律的に新しい目標を生成する | qwen3-30b-a3b | Procedural Memory を参照して効果的な目標を立てる |
-| `update_emotion` | キャラクターの感情状態を更新する | qwen3-4b | 行動結果に基づいて遷移 |
-| `maintain_presence` | X/Discord での存在感を維持する行動を生成 | qwen3-4b | presence.yaml に基づく |
+| `post_x` | X に投稿する | qwen3.5-14b | Bot ラベル付きアカウント推奨。Phase 0 の X 判定結果に依存 |
+| `reply_x` | X の投稿にリプライする | qwen3.5-14b | 同上 |
+| `generate_goal` | 自律的に新しい目標を生成する | qwen3.5-35b-a3b | Procedural Memory を参照して効果的な目標を立てる |
+| `update_emotion` | キャラクターの感情状態を更新する | qwen3.5-4b | 行動結果に基づいて遷移 |
+| `maintain_presence` | X/Discord での存在感を維持する行動を生成 | qwen3.5-4b | presence.yaml に基づく |
 
 ---
 

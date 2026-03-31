@@ -211,3 +211,70 @@ playwright install chromium
 | V6 不合格 | **Stealth 見直し** | Node.js rebrowser or 住宅プロキシ検討 |
 
 **重要**: V1-V5 が合格すれば、V6-V7 の結果に関わらず Phase 1 に進める。
+
+---
+
+## 実施結果ログ
+
+> 実施日: 2026-03-31
+
+| 検証 | 状態 | 結果サマリ |
+|------|------|-----------|
+| V1: LLM 推論速度 | **合格** | qwen3.5:35b-a3b: 31.9 tok/s（基準 25 超過）/ JSON 10/10 OK / 日本語品質 3/3 OK。think=false（thinking モード無効）必須 |
+| V2: 埋め込みモデル | **条件付き合格** | nomic-embed-text は日英クロスリンガル不合格（avg 0.484）。multilingual-e5-base を採用（3/4 合格、関連 avg 0.810 > 非関連 avg 0.773） |
+| V3: Qdrant | **合格** | 書き込み 11ms、検索 4.9ms（基準 < 100ms）、フィルタ検索 2.5ms |
+| V4: ソースアダプタ疎通 | **合格** | HN API (500件) / HN RSS (20件) / GitHub Trending (10件) / TechCrunch RSS (20件) OK。config/sources/rss_feeds.yaml の wired URL が 404 → 要修正 |
+| V5: YAML ロード | **合格** | sources(8/8) / skills(10/10) / characters(2/2) = 20/20 OK |
+| V6: Playwright Stealth | **合格** | rebrowser-playwright: navigator.webdriver=False / browserscan.net 自動化検出なし / bot.sannysoft.com WebDriver Advanced: passed。全 3 項目クリア |
+| V7: X セッション | **合格** | CDP アプローチ（実 Chrome でログイン）でセッション取得成功。Zephyr・Lynx 両キャラクター分の state.json 作成済み。タイムライン 10/10・検索 5/5 全合格（基準超過） |
+
+### 判定（2026-03-31 確定）
+
+- **V1〜V7 全合格**: Phase 0 完全 Go ✅ → **Phase 1 着手可能**
+- **LLM 設定**: `think: false` で Ollama API を呼び出す（thinking モード無効化が必須）
+  - think=true 時: 476 tokens / 31 秒 → タイムアウト多発
+  - think=false 時: 14 tokens / 1.1 秒 → 安定動作
+- **埋め込みモデル確定**: multilingual-e5-base を採用（Qdrant ベクトル次元は 768）
+- **X セッション管理**: CDP アプローチ確立。`--setup --character {zephyr|lynx}` で実 Chrome ログイン → state.json 取得。`--test` は rebrowser-playwright で閲覧
+  - セッションファイル: `data/browser-profile/zephyr/state.json` / `data/browser-profile/lynx/state.json`
+  - セッション更新: セッション切れ時に `--setup` を再実行するだけ
+
+### 判明した修正事項
+
+| # | 修正対象 | 内容 | 状態 |
+|---|---------|------|------|
+| 1 | `config/sources/rss_feeds.yaml` | Wired AI の RSS URL が 404（poc/v4 のテスト専用 URL、本 YAML には存在しない）| 対応不要 |
+| 2 | `config/llm/routing.yaml` | multilingual-e5-base を埋め込みモデルとして明記 | **完了** |
+| 3 | Ollama API 呼び出し | `think: false` を全呼び出しに付与（routing.yaml に ollama_defaults として定義） | **完了** |
+| 4 | `docs/3_skill_definition.md` | モデル名誤記（qwen3-30b-a3b等）・Phase誤記・procedural collection → 一括修正 | **完了** |
+| 5 | multilingual-e5-base 実行方式 | sentence-transformers を FastAPI コンテナ（embed サービス）として分離 | **完了** |
+| 6 | X セッション取得方法 | rebrowser-playwright の --setup は X フォーム入力を bot 検出でブロック → CDP アプローチに切り替え | **完了** |
+| 7 | セッション管理のキャラクター対応 | Zephyr・Lynx 各キャラクターの state.json を分離管理 | **完了** |
+
+---
+
+## 設計レビュー結果サマリー（2026-03-31）
+
+> アーキテクトエージェントによるレビュー結果。詳細は `docs/6_decisions.md` に追記予定。
+
+### Phase 1 ブロッカー（P0）
+
+| # | 未解決事項 | 対応方針 |
+|---|-----------|---------|
+| U1 | think=false の設定箇所 | **完了** — routing.yaml に ollama_defaults として追加 |
+| U2 | multilingual-e5-base の実行方式 | sentence-transformers を agent-core コンテナに同居。FastAPI で `/embed` エンドポイントを提供 |
+| U3 | Phase 1 の LLM プロンプト構築パス | build_llm_context は Phase 2。Phase 1 では各 Skill が直接プロンプトを構築（store_semantic の output_schema を厳密に定義で対応） |
+
+### 主要な矛盾（P1 修正中）
+
+- C1/C2: docs/3_skill_definition.md のモデル名（qwen3-30b-a3b → qwen3.5-35b-a3b 等）
+- C3: select_skill / plan_task の phase が 1 と誤記（正: 2）
+- C4/C5: docs/4_llm_prompt_context.md のトークン数が context_limits.yaml と不一致
+- C8: recall_related の collections に存在しない `procedural` が含まれる
+
+### think=false の影響まとめ
+
+| フェーズ | 影響 | 対策 |
+|---------|------|------|
+| Phase 1 | **極めて限定的**（ルールベースで LLM 迂回） | 現状維持 |
+| Phase 2 以降 | select_skill / plan_task の複雑推論で品質劣化リスク | Phase 2 着手前に think=true+120s タイムアウトで比較実験 |
