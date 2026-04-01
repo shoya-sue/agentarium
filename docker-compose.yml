@@ -65,6 +65,9 @@ services:
       - EMBED_URL=http://embed:8001
       - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      - DISCORD_CHANNEL_GENERAL=${DISCORD_CHANNEL_GENERAL:-}
+      - ENABLE_AGENT_LOOP=${ENABLE_AGENT_LOOP:-false}
     volumes:
       - ./config:/app/config:ro          # 設定ファイル（読み取り専用）
       - ./data:/app/data                 # 出力データ（読み書き）
