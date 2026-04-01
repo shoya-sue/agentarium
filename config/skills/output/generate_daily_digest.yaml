@@ -1,0 +1,64 @@
+name: generate_daily_digest
+version: "1.0.0"
+category: output
+phase: 3
+description: "1日の収集情報・活動サマリーを LLM で生成する"
+
+input:
+  type: object
+  required: [entries]
+  properties:
+    entries:
+      type: array
+      description: "収集したエントリ一覧（title, summary, source 等を含む dict のリスト）"
+    date:
+      type: string
+      description: "対象日（YYYY-MM-DD）。省略時は今日"
+      nullable: true
+    dry_run:
+      type: boolean
+      description: "True の場合は LLM を呼ばずにバリデーションのみ実行する"
+      default: false
+    model:
+      type: string
+      description: "使用 LLM モデル（省略時: qwen3.5:14b）"
+      nullable: true
+
+output:
+  type: object
+  required: [generated, title, body, entry_count, date, dry_run]
+  properties:
+    generated:
+      type: boolean
+      description: "生成成功フラグ"
+    title:
+      type: string
+      description: "ダイジェストタイトル（例: 2026-04-01 Daily Digest）"
+    body:
+      type: string
+      description: "Markdown 本文（エラー時は空文字列）"
+    entry_count:
+      type: integer
+      description: "入力エントリ数"
+    date:
+      type: string
+      description: "対象日"
+    dry_run:
+      type: boolean
+      description: "dry_run フラグ"
+    reason:
+      type: string
+      description: "未生成の理由（dry_run / empty_entries / エラーメッセージ）"
+      nullable: true
+
+llm:
+  backend: "ollama"
+  default_model: "qwen3.5:14b"
+  think: false
+
+trace:
+  log_fields: [generated, entry_count, date, dry_run, reason, duration_ms, error]
+
+error_handling:
+  llm_error: "generated=false、reason にエラーメッセージを格納して返す"
+  empty_entries: "reason=empty_entries を返す"
