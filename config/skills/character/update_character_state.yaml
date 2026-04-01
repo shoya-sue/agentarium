@@ -1,0 +1,67 @@
+name: update_character_state
+version: "1.0.0"
+category: character
+phase: 3
+description: "L4 Cognitive State（疲労・認知負荷・集中）をルールベースで更新する"
+
+input:
+  type: object
+  required: [character, current_state]
+  properties:
+    character:
+      type: string
+      description: "キャラクター名"
+    current_state:
+      type: object
+      description: "現在の認知状態"
+      properties:
+        cognitive_load:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+        fatigue:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+        focus:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+    trigger:
+      type: string
+      description: "更新トリガー"
+      enum: [skill_execution, llm_heavy_task, idle_period, topic_switch]
+    elapsed_hours:
+      type: number
+      description: "経過時間（疲労蓄積計算用、省略時: 0.0）"
+      minimum: 0.0
+
+output:
+  type: object
+  required: [character, state, updated_at]
+  properties:
+    character:
+      type: string
+    state:
+      type: object
+      properties:
+        cognitive_load:
+          type: number
+        fatigue:
+          type: number
+        focus:
+          type: number
+    updated_at:
+      type: string
+      description: "ISO 8601 タイムスタンプ"
+
+cognitive:
+  fatigue_accumulation_per_hour: 0.04
+  focus_reset_value: 0.3
+  score_range: [0.0, 1.0]
+
+trace:
+  log_fields: [character, trigger, elapsed_hours, cognitive_load, fatigue, focus, duration_ms, error]
+
+error_handling:
+  unknown_trigger: "警告をログに記録して無視"

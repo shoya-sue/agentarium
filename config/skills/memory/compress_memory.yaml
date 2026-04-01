@@ -1,0 +1,41 @@
+name: compress_memory
+version: "1.0.0"
+category: memory
+phase: 3
+description: "Qdrant コレクションをスキャンし、重要度が低い記憶を削除して圧縮する"
+
+input:
+  type: object
+  properties:
+    collection:
+      type: string
+      description: "対象コレクション名（省略時: semantic）"
+      default: "semantic"
+
+output:
+  type: object
+  required: [scanned, deleted, merged]
+  properties:
+    scanned:
+      type: integer
+      description: "スキャンしたポイント数"
+    deleted:
+      type: integer
+      description: "削除したポイント数"
+    merged:
+      type: integer
+      description: "マージしたポイント数（現フェーズでは常に 0）"
+
+qdrant:
+  default_collection: "semantic"
+  importance_threshold: 0.3
+
+safety:
+  ref: "config/safety.yaml#skill_limits.qdrant_write"
+
+trace:
+  log_fields: [scanned, deleted, merged, collection, duration_ms, error]
+
+error_handling:
+  collection_not_found: "scanned=0, deleted=0, merged=0 を返す"
+  qdrant_error: "エラーをログに記録して例外を再送出"

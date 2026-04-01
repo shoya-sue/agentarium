@@ -1,0 +1,38 @@
+name: forget_low_value
+version: "1.0.0"
+category: memory
+phase: 3
+description: "Qdrant コレクションをスキャンし、アクセス数が少ない低価値な記憶を削除する"
+
+input:
+  type: object
+  properties:
+    collection:
+      type: string
+      description: "対象コレクション名（省略時: episodic）"
+      default: "episodic"
+
+output:
+  type: object
+  required: [scanned, forgotten]
+  properties:
+    scanned:
+      type: integer
+      description: "スキャンしたポイント数"
+    forgotten:
+      type: integer
+      description: "削除したポイント数"
+
+qdrant:
+  default_collection: "episodic"
+  min_access_count: 1
+
+safety:
+  ref: "config/safety.yaml#skill_limits.qdrant_write"
+
+trace:
+  log_fields: [scanned, forgotten, collection, duration_ms, error]
+
+error_handling:
+  collection_not_found: "scanned=0, forgotten=0 を返す"
+  qdrant_error: "エラーをログに記録して例外を再送出"

@@ -1,0 +1,53 @@
+name: post_x
+version: "1.0.0"
+category: action
+phase: 3
+description: "X (Twitter) にキャラクターとしてツイートを投稿する"
+
+input:
+  type: object
+  required: [text]
+  properties:
+    text:
+      type: string
+      description: "投稿するテキスト（最大 280 文字）"
+      maxLength: 280
+    dry_run:
+      type: boolean
+      description: "True の場合はバリデーションのみ。ブラウザを起動しない"
+      default: false
+    cookies_file:
+      type: string
+      description: "Cookie ファイルパス（省略時: data/browser-profile/cookies.json）"
+      nullable: true
+
+output:
+  type: object
+  required: [posted, text, text_length, dry_run]
+  properties:
+    posted:
+      type: boolean
+      description: "投稿成功フラグ"
+    text:
+      type: string
+      description: "投稿したテキスト"
+    text_length:
+      type: integer
+      description: "テキスト文字数"
+    dry_run:
+      type: boolean
+      description: "dry_run フラグ"
+    reason:
+      type: string
+      description: "未投稿の理由（dry_run / empty_text / text_too_long / エラーメッセージ）"
+      nullable: true
+
+tweet:
+  max_length: 280
+
+trace:
+  log_fields: [posted, text_length, dry_run, reason, duration_ms, error]
+
+error_handling:
+  browser_error: "エラーメッセージを reason に格納して posted=false を返す"
+  cookie_load_error: "警告をログに記録して空 Cookie で継続"

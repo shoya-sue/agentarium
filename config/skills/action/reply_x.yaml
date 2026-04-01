@@ -1,0 +1,60 @@
+name: reply_x
+version: "1.0.0"
+category: action
+phase: 3
+description: "X (Twitter) の特定ツイートにキャラクターとして返信を投稿する"
+
+input:
+  type: object
+  required: [tweet_url, text]
+  properties:
+    tweet_url:
+      type: string
+      description: "返信先ツイートの URL（例: https://x.com/username/status/1234567890）"
+    text:
+      type: string
+      description: "返信テキスト（最大 280 文字）"
+      maxLength: 280
+    dry_run:
+      type: boolean
+      description: "True の場合はバリデーションのみ。ブラウザを起動しない"
+      default: false
+    cookies_file:
+      type: string
+      description: "Cookie ファイルパス（省略時: data/browser-profile/cookies.json）"
+      nullable: true
+
+output:
+  type: object
+  required: [posted, text, text_length, tweet_url, dry_run]
+  properties:
+    posted:
+      type: boolean
+      description: "投稿成功フラグ"
+    text:
+      type: string
+      description: "返信テキスト"
+    text_length:
+      type: integer
+      description: "テキスト文字数"
+    tweet_url:
+      type: string
+      description: "返信先ツイート URL"
+    dry_run:
+      type: boolean
+      description: "dry_run フラグ"
+    reason:
+      type: string
+      description: "未投稿の理由（dry_run / empty_text / text_too_long / missing_tweet_url / invalid_tweet_url / エラーメッセージ）"
+      nullable: true
+
+reply:
+  max_length: 280
+
+trace:
+  log_fields: [posted, text_length, tweet_url, dry_run, reason, duration_ms, error]
+
+error_handling:
+  browser_error: "エラーメッセージを reason に格納して posted=false を返す"
+  invalid_tweet_url: "reason=invalid_tweet_url を返す"
+  cookie_load_error: "警告をログに記録して空 Cookie で継続"

@@ -1,0 +1,59 @@
+name: update_emotion
+version: "1.0.0"
+category: character
+phase: 3
+description: "ルールベースで感情状態を更新する。trigger または明示的な delta を適用し、時間経過による減衰も処理する"
+
+input:
+  type: object
+  required: [character, current_state]
+  properties:
+    character:
+      type: string
+      description: "キャラクター名"
+    current_state:
+      type: object
+      description: "現在の感情状態 {軸名: 0.0〜1.0}"
+      additionalProperties:
+        type: number
+    delta:
+      type: object
+      description: "明示的な感情 delta {軸名: delta値}（省略可）"
+      additionalProperties:
+        type: number
+    trigger:
+      type: string
+      description: "Skill トリガー名（skill_success / skill_failure / user_interaction）"
+      enum: [skill_success, skill_failure, user_interaction]
+    elapsed_hours:
+      type: number
+      description: "経過時間（減衰計算用、省略時: 0.0）"
+      minimum: 0.0
+
+output:
+  type: object
+  required: [character, state, updated_at]
+  properties:
+    character:
+      type: string
+      description: "キャラクター名"
+    state:
+      type: object
+      description: "更新後の感情状態 {軸名: 0.0〜1.0}"
+      additionalProperties:
+        type: number
+    updated_at:
+      type: string
+      description: "更新タイムスタンプ（ISO 8601）"
+
+emotion:
+  neutral_point: 0.5
+  decay_rate_per_hour: 0.1
+  score_range: [0.0, 1.0]
+
+trace:
+  log_fields: [character, trigger, elapsed_hours, duration_ms, error]
+
+error_handling:
+  unknown_trigger: "警告をログに記録して無視"
+  unknown_axis_in_delta: "その軸の delta を無視"

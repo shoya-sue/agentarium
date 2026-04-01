@@ -1,0 +1,50 @@
+name: maintain_presence
+version: "1.0.0"
+category: character
+phase: 3
+description: "最後の活動時刻と疲労度から X / Discord プレゼンス行動を推奨する"
+
+input:
+  type: object
+  properties:
+    last_x_activity_at:
+      type: string
+      description: "最後の X 活動時刻（ISO 8601）。null の場合は未活動として扱う"
+      nullable: true
+    last_discord_activity_at:
+      type: string
+      description: "最後の Discord 活動時刻（ISO 8601）。null の場合は未活動として扱う"
+      nullable: true
+    fatigue:
+      type: number
+      description: "現在の疲労度 0.0〜1.0（省略時: 0.0）"
+      minimum: 0.0
+      maximum: 1.0
+
+output:
+  type: object
+  required: [action, platform, urgency]
+  properties:
+    action:
+      type: string
+      description: "推奨アクション"
+      enum: [discord_monitor, discord_respond, x_browse, idle]
+    platform:
+      type: string
+      description: "対象プラットフォーム"
+      enum: [x, discord, none]
+    urgency:
+      type: number
+      description: "緊急度 0.0〜1.0"
+      minimum: 0.0
+      maximum: 1.0
+
+presence:
+  discord_interval_min: 15
+  x_interval_min: 30
+
+trace:
+  log_fields: [action, platform, urgency, discord_elapsed_min, x_elapsed_min, fatigue, duration_ms, error]
+
+error_handling:
+  invalid_datetime: "null として扱い非常に古い時刻と同様に処理"

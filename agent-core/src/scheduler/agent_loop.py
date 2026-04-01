@@ -20,6 +20,7 @@ from typing import Any
 
 from core.working_memory import WorkingMemory
 from core.safety_guard import SafetyGuard
+from utils.config import find_project_root
 
 logger = logging.getLogger(__name__)
 
@@ -157,9 +158,9 @@ class AgentLoop:
         self._cycle_interval_seconds = cycle_interval_seconds
         self._max_cycles = max_cycles
 
-        # config ディレクトリの解決
+        # config ディレクトリの解決（Docker / ローカル両対応）
         if config_dir is None:
-            self._config_dir = Path(__file__).parent.parent.parent.parent / "config"
+            self._config_dir = find_project_root(Path(__file__).resolve().parent) / "config"
         else:
             self._config_dir = Path(config_dir)
 

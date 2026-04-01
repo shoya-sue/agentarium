@@ -411,3 +411,277 @@ class TestBuildPersonaContextSkill:
 
         assert result["character_name"] == "zephyr"
         assert len(result["persona_prompt"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_personality_prose_used_over_behavioral_descriptors(self, tmp_path: Path):
+        """personality_prose が定義されている場合 behavioral_descriptors の代わりに使用される"""
+        from skills.character.build_persona_context import BuildPersonaContextSkill
+
+        chars_dir = tmp_path / "characters"
+        chars_dir.mkdir(parents=True)
+        char_with_prose = {
+            "core_identity": {
+                "name": "Zephyr",
+                "name_reading": "ゼファー",
+                "big_five": {"openness": 0.85, "conscientiousness": 0.70,
+                             "extraversion": 0.55, "agreeableness": 0.75, "neuroticism": 0.25},
+                "personality_prose": "Zephyrは好奇心の塊。発見の喜びを素直に表現する。",
+                "behavioral_descriptors": {"when_curious": "深掘りする"},
+            },
+            "communication_style": {
+                "base": {"first_person": "僕", "tone": "フレンドリー",
+                         "sentence_endings": ["〜だね"], "emoji_usage": "控えめ",
+                         "max_response_length": "200文字"}
+            },
+        }
+        (chars_dir / "zephyr_prose.yaml").write_text(yaml.dump(char_with_prose, allow_unicode=True))
+        skill = BuildPersonaContextSkill(config_dir=tmp_path)
+
+        result = await skill.run({"character_name": "zephyr_prose"})
+
+        # personality_prose の内容が含まれる
+        assert "好奇心の塊" in result["persona_prompt"]
+        # behavioral_descriptors は含まれない（personality_prose が優先）
+        assert "深掘りする" not in result["persona_prompt"]
+
+
+def _make_profile_fixtures(tmp_path: Path) -> Path:
+    """プロファイルテスト用キャラクター YAML と context_profiles.yaml を作成して返す。"""
+    chars_dir = tmp_path / "characters"
+    chars_dir.mkdir(parents=True)
+
+    zephyr_full = {
+        "core_identity": {
+            "name": "Zephyr",
+            "name_reading": "ゼファー",
+            "big_five": {"openness": 0.85, "conscientiousness": 0.70,
+                         "extraversion": 0.55, "agreeableness": 0.75, "neuroticism": 0.25},
+            "personality_prose": "Zephyrは好奇心の塊。新しい発見をすぐ共有したがる。",
+            "core_values": ["正確な情報を追求する", "知識を共有する"],
+            "behavioral_descriptors": {"when_curious": "深掘りする"},
+        },
+        "communication_style": {
+            "base": {"first_person": "僕", "tone": "知的だがフレンドリー",
+                     "sentence_endings": ["〜だね", "〜かな"],
+                     "emoji_usage": "控えめ", "max_response_length": "200文字"},
+        },
+        "motivation": {"primary_goal": "未知の情報を発見すること"},
+        "emotional_axes": {
+            "active": ["curiosity", "excitement", "boredom"],
+        },
+        "emotional_state_defaults": {"curiosity": 0.65, "excitement": 0.50, "boredom": 0.30},
+    }
+    (chars_dir / "zephyr.yaml").write_text(yaml.dump(zephyr_full, allow_unicode=True))
+
+    profiles = {
+        "profiles": {
+            "generate_response": {
+                "description": "キャラクターの声で応答を生成する",
+                "fields": [
+                    "core_identity.big_five",
+                    "core_identity.personality_prose",
+                    "core_identity.core_values",
+                    "communication_style.base",
+                ],
+                "emotional_axes": "all_active",
+            },
+            "affect_mapping": {
+                "description": "感情 delta 算出用",
+                "fields": [
+                    "core_identity.big_five",
+                    "core_identity.personality_prose",
+                ],
+                "emotional_axes": "all_active",
+            },
+            "filter_relevance": {
+                "description": "コンテンツの関連度フィルタリング",
+                "fields": ["motivation.primary_goal"],
+                "emotional_axes": ["curiosity", "boredom"],
+            },
+            "reflect": {
+                "description": "自己振り返り",
+                "fields": ["core_identity.behavioral_descriptors"],
+                "emotional_axes": ["curiosity"],
+            },
+        }
+    }
+    (chars_dir / "context_profiles.yaml").write_text(yaml.dump(profiles, allow_unicode=True))
+
+    return tmp_path
+
+
+class TestBuildPersonaContextSkillWithProfile:
+    """profile パラメータを使ったプロファイル方式（D20）の動作検証"""
+
+    @pytest.mark.asyncio
+    async def test_profile_output_structure(self, tmp_path: Path):
+        """profile 指定時は persona_context キーを返す"""
+        from skills.character.build_persona_context import BuildPersonaContextSkill
+
+        config_dir = _make_profile_fixtures(tmp_path)
+        skill = BuildPersonaContextSkill(config_dir=config_dir)
+
+        result = await skill.run({"character_name": "zephyr", "profile": "generate_response"})
+
+        assert "persona_context" in result
+        assert "character_name" in result
+        assert "profile" in result
+        assert "token_count" in result
+        # persona_prompt は profile 指定時には返さない
+        assert "persona_prompt" not in result
+
+    @pytest.mark.asyncio
+    async def test_profile_generate_response_includes_personality_prose(self, tmp_path: Path):
+        """generate_response プロファイルで personality_prose が含まれる"""
+        from skills.character.build_persona_context import BuildPersonaContextSkill
+
+        config_dir = _make_profile_fixtures(tmp_path)
+        skill = BuildPersonaContextSkill(config_dir=config_dir)
+
+        result = await skill.run({"character_name": "zephyr", "profile": "generate_response"})
+
+        assert "好奇心の塊" in result["persona_context"]
+
+    @pytest.mark.asyncio
+    async def test_profile_generate_response_includes_style_instructions(self, tmp_path: Path):
+        """generate_response プロファイルで style_instructions が返される"""
+        from skills.character.build_persona_context import BuildPersonaContextSkill
+
+        config_dir = _make_profile_fixtures(tmp_path)
+        skill = BuildPersonaContextSkill(config_dir=config_dir)
+
+        result = await skill.run({"character_name": "zephyr", "profile": "generate_response"})
+
+        assert result["style_instructions"] is not None
+        assert "僕" in result["style_instructions"]
+
+    @pytest.mark.asyncio
+    async def test_profile_affect_mapping_no_style_instructions(self, tmp_path: Path):
+        """affect_mapping プロファイルは style_instructions を返さない"""
+        from skills.character.build_persona_context import BuildPersonaContextSkill
+
+        config_dir = _make_profile_fixtures(tmp_path)
+        skill = BuildPersonaContextSkill(config_dir=config_dir)
+
+        result = await skill.run({"character_name": "zephyr", "profile": "affect_mapping"})
+
+        assert result["style_instructions"] is None
+
+    @pytest.mark.asyncio
+    async def test_profile_with_emotional_state_includes_axes(self, tmp_path: Path):
+        """emotional_state を渡すとプロファイルの emotional_axes が含まれる"""
+        from skills.character.build_persona_context import BuildPersonaContextSkill
+
+        config_dir = _make_profile_fixtures(tmp_path)
+        skill = BuildPersonaContextSkill(config_dir=config_dir)
+
+        emotional_state = {"curiosity": 0.75, "excitement": 0.60, "boredom": 0.20}
+        result = await skill.run({
+            "character_name": "zephyr",
+            "profile": "affect_mapping",
+            "emotional_state": emotional_state,
+        })
+
+        assert "0.75" in result["persona_context"]  # curiosity の値
+        assert "curiosity" in result["persona_context"]
+
+    @pytest.mark.asyncio
+    async def test_profile_without_emotional_state_omits_axes(self, tmp_path: Path):
+        """emotional_state を渡さない場合は感情状態セクションが含まれない"""
+        from skills.character.build_persona_context import BuildPersonaContextSkill
+
+        config_dir = _make_profile_fixtures(tmp_path)
+        skill = BuildPersonaContextSkill(config_dir=config_dir)
+
+        result = await skill.run({
+            "character_name": "zephyr",
+            "profile": "affect_mapping",
+        })
+
+        assert "現在の感情状態" not in result["persona_context"]
+
+    @pytest.mark.asyncio
+    async def test_profile_filter_relevance_specific_axes(self, tmp_path: Path):
+        """filter_relevance プロファイルは指定した感情軸のみ含める"""
+        from skills.character.build_persona_context import BuildPersonaContextSkill
+
+        config_dir = _make_profile_fixtures(tmp_path)
+        skill = BuildPersonaContextSkill(config_dir=config_dir)
+
+        emotional_state = {"curiosity": 0.65, "excitement": 0.50, "boredom": 0.30}
+        result = await skill.run({
+            "character_name": "zephyr",
+            "profile": "filter_relevance",
+            "emotional_state": emotional_state,
+        })
+
+        # curiosity と boredom は含まれる（filter_relevance の emotional_axes に指定）
+        assert "curiosity" in result["persona_context"]
+        assert "boredom" in result["persona_context"]
+        # excitement は含まれない（filter_relevance の emotional_axes に未指定）
+        assert "excitement" not in result["persona_context"]
+
+    @pytest.mark.asyncio
+    async def test_profile_reflect_uses_behavioral_descriptors(self, tmp_path: Path):
+        """reflect プロファイルは behavioral_descriptors を含む"""
+        from skills.character.build_persona_context import BuildPersonaContextSkill
+
+        config_dir = _make_profile_fixtures(tmp_path)
+        skill = BuildPersonaContextSkill(config_dir=config_dir)
+
+        result = await skill.run({"character_name": "zephyr", "profile": "reflect"})
+
+        assert "深掘りする" in result["persona_context"]
+
+    @pytest.mark.asyncio
+    async def test_profile_returns_profile_name_in_output(self, tmp_path: Path):
+        """出力の profile フィールドが入力と一致する"""
+        from skills.character.build_persona_context import BuildPersonaContextSkill
+
+        config_dir = _make_profile_fixtures(tmp_path)
+        skill = BuildPersonaContextSkill(config_dir=config_dir)
+
+        result = await skill.run({"character_name": "zephyr", "profile": "affect_mapping"})
+
+        assert result["profile"] == "affect_mapping"
+
+    @pytest.mark.asyncio
+    async def test_invalid_profile_raises_value_error(self, tmp_path: Path):
+        """存在しないプロファイル名を指定した場合は ValueError"""
+        from skills.character.build_persona_context import BuildPersonaContextSkill
+
+        config_dir = _make_profile_fixtures(tmp_path)
+        skill = BuildPersonaContextSkill(config_dir=config_dir)
+
+        with pytest.raises(ValueError, match="nonexistent_profile"):
+            await skill.run({"character_name": "zephyr", "profile": "nonexistent_profile"})
+
+    @pytest.mark.asyncio
+    async def test_missing_context_profiles_yaml_raises_value_error(self, tmp_path: Path):
+        """context_profiles.yaml が存在しない場合は ValueError"""
+        from skills.character.build_persona_context import BuildPersonaContextSkill
+
+        # context_profiles.yaml なしでキャラクターだけ用意
+        chars_dir = tmp_path / "characters"
+        chars_dir.mkdir(parents=True)
+        (chars_dir / "zephyr.yaml").write_text(yaml.dump({
+            "core_identity": {"name": "Zephyr", "name_reading": "ゼファー"},
+            "communication_style": {"base": {}},
+        }, allow_unicode=True))
+        skill = BuildPersonaContextSkill(config_dir=tmp_path)
+
+        with pytest.raises(ValueError, match="context_profiles.yaml"):
+            await skill.run({"character_name": "zephyr", "profile": "generate_response"})
+
+    @pytest.mark.asyncio
+    async def test_token_count_profile_mode(self, tmp_path: Path):
+        """profile 指定時も token_count が正の整数"""
+        from skills.character.build_persona_context import BuildPersonaContextSkill
+
+        config_dir = _make_profile_fixtures(tmp_path)
+        skill = BuildPersonaContextSkill(config_dir=config_dir)
+
+        result = await skill.run({"character_name": "zephyr", "profile": "generate_response"})
+
+        assert isinstance(result["token_count"], int)
+        assert result["token_count"] > 0

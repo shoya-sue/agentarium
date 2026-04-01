@@ -21,6 +21,27 @@ from models.llm import LLMClient
 from skills.perception.browse_source import BrowseSourceSkill
 from skills.memory.store_episodic import StoreEpisodicSkill
 from skills.memory.store_semantic import StoreSemanticSkill
+from skills.memory.recall_related import RecallRelatedSkill
+from skills.memory.evaluate_importance import EvaluateImportanceSkill
+from skills.reasoning.select_skill import SelectSkillSkill
+from skills.reasoning.reflect import ReflectSkill
+from skills.reasoning.plan_task import PlanTaskSkill
+from skills.reasoning.generate_response import GenerateResponseSkill
+from skills.reasoning.build_llm_context import BuildLlmContextSkill
+from skills.action.send_discord import SendDiscordSkill
+from skills.action.post_x import PostXSkill
+from skills.action.reply_x import ReplyXSkill
+from skills.character.build_persona_context import BuildPersonaContextSkill
+from skills.character.update_emotional_state import UpdateEmotionalStateSkill
+from skills.character.update_emotion import UpdateEmotionSkill
+from skills.character.update_character_state import UpdateCharacterStateSkill
+from skills.character.maintain_presence import MaintainPresenceSkill
+from skills.memory.compress_memory import CompressMemorySkill
+from skills.memory.forget_low_value import ForgetLowValueSkill
+from skills.reasoning.generate_goal import GenerateGoalSkill
+from skills.output.generate_daily_digest import GenerateDailyDigestSkill
+from skills.output.generate_topic_report import GenerateTopicReportSkill
+from skills.output.generate_trend_alert import GenerateTrendAlertSkill
 from utils.config import load_yaml_config
 
 # ──────────────────────────────────────────────
@@ -201,10 +222,131 @@ async def _run_agent_loop(settings: dict) -> None:
     character_name: str = agent_cfg.get("character_name", "agent_character")
     cycle_interval: float = float(agent_cfg.get("agent_loop_interval_seconds", 60.0))
 
+    # --- Phase 2 Skill インスタンス生成 ---
+    ollama_cfg = settings.get("ollama", {})
+    llm = LLMClient(
+        base_url=ollama_cfg.get("base_url", "http://localhost:11434"),
+        model=ollama_cfg.get("default_model", "qwen3.5:35b-a3b"),
+        timeout_seconds=int(ollama_cfg.get("timeout_seconds", 30)),
+    )
+
+    qdrant_cfg = settings.get("qdrant", {})
+    qdrant_host = qdrant_cfg.get("host", "localhost")
+    qdrant_port = int(qdrant_cfg.get("port", 6333))
+
+    routing_cfg = load_yaml_config(CONFIG_DIR / "llm" / "routing.yaml")
+    embed_url = routing_cfg.get("embedding_server", {}).get("local_url", "http://localhost:8001")
+
+    # キャラクタースキル
+    build_persona_context = BuildPersonaContextSkill(config_dir=CONFIG_DIR)
+    update_emotional_state = UpdateEmotionalStateSkill(
+        llm_client=llm,
+        config_dir=CONFIG_DIR,
+    )
+
+    # 記憶スキル
+    store_episodic = StoreEpisodicSkill(
+        qdrant_host=qdrant_host,
+        qdrant_port=qdrant_port,
+    )
+    store_semantic = StoreSemanticSkill(
+        qdrant_host=qdrant_host,
+        qdrant_port=qdrant_port,
+        embed_url=embed_url,
+        llm_client=llm,
+    )
+    recall_related = RecallRelatedSkill(
+        qdrant_host=qdrant_host,
+        qdrant_port=qdrant_port,
+        embed_url=embed_url,
+    )
+    evaluate_importance = EvaluateImportanceSkill(llm_client=llm)
+
+    # 推論スキル
+    select_skill = SelectSkillSkill(llm_client=llm, config_dir=CONFIG_DIR)
+    reflect = ReflectSkill(llm_client=llm, config_dir=CONFIG_DIR)
+    plan_task = PlanTaskSkill(llm_client=llm, config_dir=CONFIG_DIR)
+    generate_response = GenerateResponseSkill(llm_client=llm, config_dir=CONFIG_DIR)
+    build_llm_context = BuildLlmContextSkill(config_dir=CONFIG_DIR)
+
+    # アクションスキル
+    send_discord = SendDiscordSkill(config_dir=CONFIG_DIR)
+    post_x = PostXSkill()
+    reply_x = ReplyXSkill()
+
+    # キャラクタースキル（Phase 3）
+    update_emotion = UpdateEmotionSkill()
+    update_character_state = UpdateCharacterStateSkill()
+    maintain_presence = MaintainPresenceSkill()
+
+    # 記憶スキル（Phase 3）
+    from qdrant_client import QdrantClient as _QdrantClient
+    _qdrant_client = _QdrantClient(host=qdrant_host, port=qdrant_port)
+    compress_memory = CompressMemorySkill(qdrant_client=_qdrant_client)
+    forget_low_value = ForgetLowValueSkill(qdrant_client=_qdrant_client)
+
+    # 推論スキル（Phase 3）
+    generate_goal = GenerateGoalSkill(llm_client=llm, config_dir=CONFIG_DIR)
+
+    # アウトプットスキル（Phase 3）
+    generate_daily_digest = GenerateDailyDigestSkill(llm_client=llm)
+    generate_topic_report = GenerateTopicReportSkill(llm_client=llm)
+    generate_trend_alert = GenerateTrendAlertSkill(llm_client=llm)
+
+    # browse_source ラッパー（AgentLoop から各フィードを個別スキルとして選択可能にする）
+    browse_source_skill = BrowseSourceSkill(config_dir=CONFIG_DIR)
+
+    async def _fetch_hacker_news(params: dict) -> list:
+        return await browse_source_skill.run({"source_id": "hacker_news", "max_items": params.get("max_items", 20)})
+
+    async def _fetch_rss(params: dict) -> list:
+        return await browse_source_skill.run({"source_id": "rss_feeds", "max_items": params.get("max_items", 20)})
+
+    async def _fetch_github_trending(params: dict) -> list:
+        return await browse_source_skill.run({"source_id": "github_trending", "max_items": params.get("max_items", 20)})
+
+    skill_registry = {
+        # 情報取得
+        "fetch_hacker_news": _fetch_hacker_news,
+        "fetch_rss": _fetch_rss,
+        "fetch_github_trending": _fetch_github_trending,
+        # 記憶
+        "store_episodic": store_episodic.run,
+        "store_semantic": store_semantic.run,
+        "recall_related": recall_related.run,
+        "evaluate_importance": evaluate_importance.run,
+        # 推論
+        "select_skill": select_skill.run,
+        "reflect": reflect.run,
+        "plan_task": plan_task.run,
+        "generate_response": generate_response.run,
+        "build_llm_context": build_llm_context.run,
+        # キャラクター
+        "build_persona_context": build_persona_context.run,
+        "update_emotional_state": update_emotional_state.run,
+        "update_emotion": update_emotion.run,
+        "update_character_state": update_character_state.run,
+        "maintain_presence": maintain_presence.run,
+        # アクション
+        "send_discord": send_discord.run,
+        "post_x": post_x.run,
+        "reply_x": reply_x.run,
+        # 記憶（Phase 3）
+        "compress_memory": compress_memory.run,
+        "forget_low_value": forget_low_value.run,
+        # 推論（Phase 3）
+        "generate_goal": generate_goal.run,
+        # アウトプット（Phase 3）
+        "generate_daily_digest": generate_daily_digest.run,
+        "generate_topic_report": generate_topic_report.run,
+        "generate_trend_alert": generate_trend_alert.run,
+    }
+
     loop = AgentLoop(
         character_name=character_name,
         cycle_interval_seconds=cycle_interval,
         config_dir=CONFIG_DIR,
+        skill_registry=skill_registry,
     )
 
     try:

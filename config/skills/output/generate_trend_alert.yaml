@@ -1,0 +1,73 @@
+name: generate_trend_alert
+version: "1.0.0"
+category: output
+phase: 3
+description: "急上昇トピック・異常値の通知テキストを LLM で生成する"
+
+input:
+  type: object
+  required: [topic, score, entries]
+  properties:
+    topic:
+      type: string
+      description: "トレンドトピック名"
+    score:
+      type: number
+      description: "トレンドスコア（0.0〜1.0）"
+      minimum: 0.0
+      maximum: 1.0
+    entries:
+      type: array
+      description: "関連エントリ一覧（title, source 等を含む dict のリスト）"
+    dry_run:
+      type: boolean
+      description: "True の場合は LLM を呼ばずにバリデーションのみ実行する"
+      default: false
+    model:
+      type: string
+      description: "使用 LLM モデル（省略時: qwen3.5:14b）"
+      nullable: true
+
+output:
+  type: object
+  required: [generated, topic, score, alert_text, entry_count, dry_run]
+  properties:
+    generated:
+      type: boolean
+      description: "生成成功フラグ"
+    topic:
+      type: string
+      description: "トレンドトピック"
+    score:
+      type: number
+      description: "トレンドスコア"
+    alert_text:
+      type: string
+      description: "アラートテキスト（Discord 向け短文）"
+    entry_count:
+      type: integer
+      description: "入力エントリ数"
+    dry_run:
+      type: boolean
+      description: "dry_run フラグ"
+    reason:
+      type: string
+      description: "未生成の理由（dry_run / empty_topic / empty_entries / score_below_threshold / エラーメッセージ）"
+      nullable: true
+
+alert:
+  min_score: 0.7
+
+llm:
+  backend: "ollama"
+  default_model: "qwen3.5:14b"
+  think: false
+
+trace:
+  log_fields: [generated, topic, score, entry_count, dry_run, reason, duration_ms, error]
+
+error_handling:
+  llm_error: "generated=false、reason にエラーメッセージを格納して返す"
+  score_below_threshold: "reason=score_below_threshold を返す"
+  empty_topic: "reason=empty_topic を返す"
+  empty_entries: "reason=empty_entries を返す"

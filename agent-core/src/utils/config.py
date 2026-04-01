@@ -41,6 +41,46 @@ def _expand_env(value: Any) -> Any:
     return value
 
 
+def find_project_root(start: Path | None = None, max_depth: int = 6) -> Path:
+    """
+    config/characters/ ディレクトリを目印にプロジェクトルートを探索する。
+
+    Docker（WORKDIR=/app）でもローカル開発でも正しく動作する。
+
+    Args:
+        start: 探索開始ディレクトリ（None の場合は呼び出し元ファイルの親）
+        max_depth: 遡る最大階層数
+
+    Returns:
+        config/ を含むディレクトリ
+
+    Raises:
+        RuntimeError: プロジェクトルートが見つからない場合
+    """
+    if start is None:
+        # この関数を呼び出すスタックフレームから計算するより
+        # 環境変数 AGENTARIUM_BASE_DIR を優先する
+        env_base = os.environ.get("AGENTARIUM_BASE_DIR")
+        if env_base:
+            return Path(env_base)
+        start = Path(__file__).resolve().parent
+
+    current = start.resolve()
+    for _ in range(max_depth):
+        if (current / "config" / "characters").is_dir():
+            return current
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+
+    raise RuntimeError(
+        f"プロジェクトルートが見つかりません: {start} から {max_depth} 階層遡っても "
+        "config/characters/ が見つかりませんでした。"
+        "AGENTARIUM_BASE_DIR 環境変数を設定してください。"
+    )
+
+
 def load_yaml_config(path: Path) -> dict[str, Any]:
     """
     YAML ファイルを読み込んで環境変数を展開した辞書を返す。

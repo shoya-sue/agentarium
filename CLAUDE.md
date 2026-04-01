@@ -68,8 +68,12 @@ agentarium/
 | 2 | [X ブラウザアクセス戦略](docs/2_x_browser_strategy.md) | bot検出対策、Stealth構成 |
 | 3 | [Skill 定義](docs/3_skill_definition.md) | Skill YAML定義、依存関係 |
 | 4 | [LLM プロンプト管理](docs/4_llm_prompt_context.md) | Working Memory、トークン制御 |
-| 5 | [キャラクター](docs/5_character_framework.md) | 6層心理モデル |
-| 6 | [意思決定ログ](docs/6_decisions.md) | レビュー結果、D1-D11の決定事項 |
+| 5 | [キャラクター](docs/5_character_framework.md) | 6層心理モデル、感情→行動影響 |
+| 6 | [意思決定ログ](docs/6_decisions.md) | レビュー結果、D1-D13の決定事項 |
+| 7 | [Phase 0 検証手順書](docs/7_phase0_verification.md) | コマンド・期待値・Go/No-Go 判定基準 |
+| 8a | [Phase 0 検証レポート](docs/8_phase0_report.md) | Docker 動作確認結果、既知問題と対処 |
+| 8b | [ダッシュボード仕様](docs/8_dashboard_spec.md) | 監視 UI 仕様・コンポーネント設計 |
+| 9 | [コンテンツ処理パイプライン](docs/9_content_processing_pipeline.md) | 要約・事実抽出・感情マッピング設計 |
 
 元の統合設計書: `docs/1_agentarium_design.md`（4247行、アーカイブ）
 
@@ -121,3 +125,5 @@ open vnc://localhost:5900
 - **D4**: Skill選択 → Phase 1 ルールベース → Phase 2 LLM駆動
 - **D7**: Qdrant → Phase 1 は 2コレクション（episodic/semantic）
 - **D9**: キャラクター → Phase 1 は L1+L6 静的値のみ
+- **D12**: google_news/newspicks 無効化（JS難読化・ログイン必須）、Google News RSS で代替
+- **D13**: RSS情報源を高S/N比10フィードに刷新（Qiita/Zenn/はてブ/Publickey/Lobsters/Ars等）

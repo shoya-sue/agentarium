@@ -4,10 +4,12 @@ tests/test_working_memory.py — WorkingMemory ユニットテスト
 イミュータブル更新パターン・プラン管理・サマリ生成を検証する。
 """
 
+import json
 import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -372,3 +374,239 @@ class TestWorkingMemoryUtilities:
 
         assert "plan_steps" in summary
         assert len(summary["plan_steps"]) == 2
+
+
+class TestWorkingMemoryEmotionalState:
+    """WorkingMemory の感情状態管理メソッドを検証（D18）"""
+
+    def test_emotional_states_default_empty(self):
+        """初期値では emotional_states は空辞書"""
+        from core.working_memory import WorkingMemory
+
+        wm = WorkingMemory()
+        assert wm.emotional_states == {}
+
+    def test_with_emotional_state_returns_new_instance(self):
+        """with_emotional_state は新インスタンスを返す"""
+        from core.working_memory import WorkingMemory
+
+        wm = WorkingMemory()
+        state = {"curiosity": 0.7, "excitement": 0.5}
+        updated = wm.with_emotional_state("zephyr", state)
+
+        assert updated is not wm
+
+    def test_with_emotional_state_stores_state(self):
+        """with_emotional_state は指定キャラクターの感情状態を格納する"""
+        from core.working_memory import WorkingMemory
+
+        wm = WorkingMemory()
+        state = {"curiosity": 0.7, "excitement": 0.5}
+        updated = wm.with_emotional_state("zephyr", state)
+
+        assert updated.emotional_states["zephyr"] == state
+
+    def test_with_emotional_state_does_not_mutate_original(self):
+        """with_emotional_state は元インスタンスを変更しない"""
+        from core.working_memory import WorkingMemory
+
+        wm = WorkingMemory()
+        state = {"curiosity": 0.7}
+        updated = wm.with_emotional_state("zephyr", state)
+
+        assert "zephyr" not in wm.emotional_states
+
+    def test_with_emotional_state_overwrites_existing(self):
+        """with_emotional_state は既存の感情状態を上書きする"""
+        from core.working_memory import WorkingMemory
+
+        wm = WorkingMemory()
+        wm = wm.with_emotional_state("zephyr", {"curiosity": 0.5})
+        updated = wm.with_emotional_state("zephyr", {"curiosity": 0.9, "excitement": 0.3})
+
+        assert updated.emotional_states["zephyr"]["curiosity"] == 0.9
+        assert "excitement" in updated.emotional_states["zephyr"]
+
+    def test_with_emotional_state_multiple_characters(self):
+        """複数キャラクターの感情状態を独立して保持できる"""
+        from core.working_memory import WorkingMemory
+
+        wm = WorkingMemory()
+        wm = wm.with_emotional_state("zephyr", {"curiosity": 0.7})
+        wm = wm.with_emotional_state("lynx", {"focus": 0.8})
+
+        assert wm.emotional_states["zephyr"]["curiosity"] == 0.7
+        assert wm.emotional_states["lynx"]["focus"] == 0.8
+
+    def test_get_emotional_state_returns_state(self):
+        """get_emotional_state は格納済みの感情状態を返す"""
+        from core.working_memory import WorkingMemory
+
+        wm = WorkingMemory()
+        state = {"curiosity": 0.65}
+        wm = wm.with_emotional_state("zephyr", state)
+
+        result = wm.get_emotional_state("zephyr")
+        assert result == state
+
+    def test_get_emotional_state_returns_none_when_absent(self):
+        """get_emotional_state は未ロード時に None を返す"""
+        from core.working_memory import WorkingMemory
+
+        wm = WorkingMemory()
+        assert wm.get_emotional_state("zephyr") is None
+
+    def test_to_summary_dict_includes_emotional_states_loaded(self):
+        """to_summary_dict に emotional_states_loaded が含まれる"""
+        from core.working_memory import WorkingMemory
+
+        wm = WorkingMemory()
+        wm = wm.with_emotional_state("zephyr", {"curiosity": 0.5})
+        summary = wm.to_summary_dict()
+
+        assert "emotional_states_loaded" in summary
+        assert "zephyr" in summary["emotional_states_loaded"]
+
+    def test_copy_preserves_emotional_states(self):
+        """_copy は emotional_states を引き継ぐ"""
+        from core.working_memory import WorkingMemory
+
+        wm = WorkingMemory()
+        wm = wm.with_emotional_state("zephyr", {"curiosity": 0.7})
+        updated = wm.with_goal("別の目標")  # emotional_states を変更しない with_*
+
+        assert updated.emotional_states["zephyr"]["curiosity"] == 0.7
+
+
+class TestLoadEmotionalState:
+    """load_emotional_state 関数を検証（D18）"""
+
+    def test_load_existing_json(self, tmp_path):
+        """既存の JSON ファイルから感情状態を読み込む"""
+        from core.working_memory import load_emotional_state
+
+        state_dir = tmp_path / "state"
+        state_dir.mkdir()
+        state_file = state_dir / "emotional_state_zephyr.json"
+        state_data = {"curiosity": 0.7, "excitement": 0.5}
+        state_file.write_text(json.dumps(state_data))
+
+        result = load_emotional_state("zephyr", state_dir)
+        assert result == state_data
+
+    def test_create_initial_file_from_yaml_defaults(self, tmp_path):
+        """JSON 未存在時は YAML defaults から初期ファイルを生成して返す"""
+        from core.working_memory import load_emotional_state
+
+        state_dir = tmp_path / "state"
+        characters_dir = tmp_path / "characters"
+        characters_dir.mkdir()
+
+        # キャラクター YAML を用意
+        char_yaml = {
+            "name": "zephyr",
+            "emotional_state_defaults": {"curiosity": 0.65, "excitement": 0.5},
+        }
+        (characters_dir / "zephyr.yaml").write_text(yaml.dump(char_yaml))
+
+        result = load_emotional_state("zephyr", state_dir, characters_dir)
+
+        assert result == {"curiosity": 0.65, "excitement": 0.5}
+
+    def test_initial_file_is_persisted(self, tmp_path):
+        """初期化後、JSON ファイルが生成されていること"""
+        from core.working_memory import load_emotional_state
+
+        state_dir = tmp_path / "state"
+        characters_dir = tmp_path / "characters"
+        characters_dir.mkdir()
+
+        char_yaml = {
+            "name": "zephyr",
+            "emotional_state_defaults": {"curiosity": 0.65},
+        }
+        (characters_dir / "zephyr.yaml").write_text(yaml.dump(char_yaml))
+
+        load_emotional_state("zephyr", state_dir, characters_dir)
+
+        state_file = state_dir / "emotional_state_zephyr.json"
+        assert state_file.exists()
+        loaded = json.loads(state_file.read_text())
+        assert loaded == {"curiosity": 0.65}
+
+    def test_raises_if_yaml_missing(self, tmp_path):
+        """YAML ファイルが存在しない場合は ValueError を送出する"""
+        from core.working_memory import load_emotional_state
+
+        state_dir = tmp_path / "state"
+        characters_dir = tmp_path / "characters"
+        characters_dir.mkdir()
+
+        with pytest.raises(ValueError, match="キャラクター YAML が見つかりません"):
+            load_emotional_state("nonexistent", state_dir, characters_dir)
+
+    def test_raises_if_yaml_has_no_defaults(self, tmp_path):
+        """YAML に emotional_state_defaults がない場合は ValueError を送出する"""
+        from core.working_memory import load_emotional_state
+
+        state_dir = tmp_path / "state"
+        characters_dir = tmp_path / "characters"
+        characters_dir.mkdir()
+
+        char_yaml = {"name": "zephyr"}  # emotional_state_defaults なし
+        (characters_dir / "zephyr.yaml").write_text(yaml.dump(char_yaml))
+
+        with pytest.raises(ValueError, match="emotional_state_defaults"):
+            load_emotional_state("zephyr", state_dir, characters_dir)
+
+
+class TestSaveEmotionalState:
+    """save_emotional_state 関数を検証（D18）"""
+
+    def test_save_creates_file(self, tmp_path):
+        """save_emotional_state は JSON ファイルを作成する"""
+        from core.working_memory import save_emotional_state
+
+        state_dir = tmp_path / "state"
+        state = {"curiosity": 0.8, "boredom": 0.2}
+
+        save_emotional_state("zephyr", state, state_dir)
+
+        state_file = state_dir / "emotional_state_zephyr.json"
+        assert state_file.exists()
+
+    def test_save_writes_correct_content(self, tmp_path):
+        """save_emotional_state は正しい内容を書き込む"""
+        from core.working_memory import save_emotional_state
+
+        state_dir = tmp_path / "state"
+        state = {"curiosity": 0.8, "excitement": 0.3}
+
+        save_emotional_state("zephyr", state, state_dir)
+
+        state_file = state_dir / "emotional_state_zephyr.json"
+        loaded = json.loads(state_file.read_text(encoding="utf-8"))
+        assert loaded == state
+
+    def test_save_creates_state_dir_if_absent(self, tmp_path):
+        """state_dir が存在しなくてもディレクトリを自動作成する"""
+        from core.working_memory import save_emotional_state
+
+        state_dir = tmp_path / "non" / "existent" / "dir"
+        save_emotional_state("zephyr", {"curiosity": 0.5}, state_dir)
+
+        assert state_dir.exists()
+
+    def test_save_overwrites_existing_file(self, tmp_path):
+        """既存ファイルを上書きする"""
+        from core.working_memory import save_emotional_state
+
+        state_dir = tmp_path / "state"
+        state_dir.mkdir()
+        state_file = state_dir / "emotional_state_zephyr.json"
+        state_file.write_text(json.dumps({"curiosity": 0.1}))
+
+        save_emotional_state("zephyr", {"curiosity": 0.9}, state_dir)
+
+        loaded = json.loads(state_file.read_text())
+        assert loaded["curiosity"] == 0.9

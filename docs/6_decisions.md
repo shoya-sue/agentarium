@@ -1,8 +1,8 @@
 # 設計レビュー・意思決定ログ
 
-**レビュー日**: 2026-03-31
+**レビュー日**: 2026-03-31 / キャラクターフレームワーク再設計: 2026-04-01
 **対象**: 統合設計書 v1（1_agentarium_design.md）
-**ステータス**: レビュー完了、意思決定反映待ち
+**ステータス**: D1-D14 反映済み。D15-D20（キャラクターフレームワーク再設計）追記
 
 ---
 
@@ -21,6 +21,15 @@
 | D9 | キャラクター | 6層全実装 | **L1+L6 静的値のみ（Phase 1）** | 動的層はPhase 2-3 |
 | D10 | 埋め込みモデル | nomic-embed-text | **Phase 0 で日本語品質検証** | multilingual-e5系を候補追加 |
 | D11 | X検証優先度 | Phase 0 主要項目 | **Phase 0 後半に移動** | コアパイプライン構築を優先 |
+| D12 | ブラウザソース運用 | google_news/newspicks 有効 | **google_news 無効化・newspicks 無効化** | JS難読化/ログイン必須で取得不可。Google News は RSS 代替 |
+| D13 | RSS情報源選定 | TechCrunch/hnrss.org 含む旧構成 | **高S/N比10フィードに刷新** | ノイズ源除外、Qiita/Zenn/はてブIT/Publickey/Lobsters/Ars Technica 追加 |
+| D14 | TTS エンジン選定 | VOICEVOX（Phase 4） | **Style-Bert-VITS2 を Phase 4 本採用候補に変更** | L3 感情軸と感情パラメータが自然対応。VOICEVOX は初期検証用に残す |
+| D15 | 感情軸設計 | 7軸固定（共通） | **20軸マスターリスト + キャラクター別 active_axes** | 毎回全軸を査定せず、キャラ固有の軸のみLLMに問う。Zephyr 10軸・Lynx 9軸 |
+| D16 | 感情初期化方針 | 全軸 0.5（中立）or LLM生成 | **Big Five静的デフォルト値をYAMLに手動定義** | 起動コスト0・決定論的・キャラ差が起動直後から出る |
+| D17 | L1 personality記述 | Big Five数値のみ | **Big Five数値 + personality_prose（2-3文）を両方使用** | 数値→機械処理（drift/affect算出）、prose→LLM system prompt |
+| D18 | 感情ベクトル永続化 | Qdrant episodic payload | **WorkingMemory（インメモリ）+ JSONファイル書き込み** | 現在値1点の保存にQdrantは過剰。検索不要・シンプル |
+| D19 | affect_mapping LLMコスト | 1コンテンツ = 1 LLM呼び出し | **複数コンテンツをバッチ化して1呼び出しに統合** | Qwen3.5-4B使用。6件→1呼び出しで約5回削減/サイクル |
+| D20 | build_persona_context設計 | Layer番号（L2, L3等）で指定 | **コンテキストプロファイル方式（context_profiles.yaml）** | Layer廃止。用途別の名前付きプロファイルでフィールドを定義 |
 
 ---
 
@@ -250,3 +259,231 @@ Phase 0 後半（2週目）: ブラウザ・X検証
 ```
 
 コアパイプラインが動くことを先に確認し、X検証の結果に関わらずPhase 1に進めるようにする。
+
+---
+
+## D12: ブラウザソース運用 — google_news/newspicks 無効化
+
+### 背景
+
+Phase 0 実装中にブラウザ取得の実用性を検証した結果、2ソースで取得不可能と判明。
+
+### 検証結果
+
+| ソース | 問題 | 対応 |
+|--------|------|------|
+| google_news | JS完全レンダリングSPA。`networkidle` 後でも `article`/`h3` 等の意味的HTML要素が存在しない。ボディは2.4MBだがスクレイピング不可 | `enabled: false`。Google News RSSを`rss_feeds.yaml`に追加して代替 |
+| newspicks | ログイン必須。認証なしでは記事リストが取得できない | `enabled: false`。Phase 2 で Cookie 認証実装後に再有効化 |
+
+### Chromium 安定化フラグ（同時対応）
+
+Docker コンテナ内で `/dev/shm` 共有メモリ不足（デフォルト 64MB）による `Page crashed` が発生。
+`docker-compose.yml` に以下のフラグを追加して解消：
+
+```
+--disable-dev-shm-usage   # /dev/shm → /tmp に切り替え
+--disable-gpu             # GPU レンダリング無効化
+--no-zygote               # プロセス分岐を抑制
+```
+
+### Yahoo News セレクタ修正（同時対応）
+
+`.newsFeed_item` クラスが廃止されており 0件 を返していた。
+ライブDOM確認により `.newsFeed_list > li` に更新（50件確認）。
+`wait_for: networkidle` + `wait_for_selector` を追加してJS レンダリング待機を確実化。
+
+### 有効ソース（修正後）
+
+| ソース | 取得方式 | 間隔 | 取得件数 |
+|--------|---------|------|---------|
+| rss_feeds | RSS直接取得 | 60分 | 20件 |
+| hacker_news | Firebase API | 60分 | 20件 |
+| yahoo_news | ブラウザ（Stealth不要） | 120分 | 20件 |
+| github_trending | ブラウザ（Stealth不要） | 360分 | 14件 |
+
+---
+
+## D13: RSS情報源刷新 — 高S/N比10フィードへの再選定
+
+### 背景
+
+初期構成にTechCrunch（広告・ノイズ多）とhnrss.org/frontpage（HN APIと重複）が含まれており効率が悪かった。
+google_news のブラウザ取得不可（D12）を機に、RSS全体を高S/N比視点で再設計。
+
+### 選定基準
+
+1. **S/N比**: 広告・クリックベイト・重複記事が少ない
+2. **コミュニティフィルタ**: 人気順・ブックマーク数等で自動審査済みのもの優先
+3. **多層化**: 日本語dev / 日本語ニュース / 英語dev の3カテゴリ横断
+4. **キャラクター親和性**: Zephyr（発見・好奇心）・Lynx（深度・根拠）の両方に対応
+
+### 採用フィード（10件）
+
+| フィード | カテゴリ | 言語 | 採用理由 |
+|---------|---------|------|---------|
+| Qiita popular-items | tech_community | ja | 国内最大dev。人気順 = コミュニティ審査済み |
+| Zenn | tech | ja | Qiitaと相補的。技術同人書に近い深さ |
+| はてブ IT hotentry | tech_community | ja | 集合知フィルター。速報性＋キュレーション品質が両立 |
+| Publickey | tech | ja | クラウド/OSS/AI の国内解説。1人編集者による高品質 |
+| Gigazine | tech | ja | 日本語テック/科学の幅広カバー（速報性重視） |
+| Google News RSS | news | ja | D12 でのブラウザ代替。主要ニュース網羅 |
+| Yahoo News top-picks | news | ja | 国内ニュース全般 |
+| Lobsters | tech_community | en | HN招待制版。技術深度はHN以上、ノイズはHN以下 |
+| Ars Technica | tech | en | 長文技術ジャーナリズム。AI/セキュリティの深堀り |
+| The Verge | tech | en | Big Tech速報。コンシューマーテック動向のカバー |
+
+### 除外フィード
+
+| フィード | 除外理由 |
+|---------|---------|
+| TechCrunch | 広告記事・スポンサーコンテンツが多く S/N 比が低い |
+| hnrss.org/frontpage | HN API（hacker_news ソース）と完全重複 |
+
+### 将来候補（Phase 1 以降で追加検討）
+
+| フィード | 理由 |
+|---------|------|
+| arXiv cs.AI/cs.LG | ML/AI論文の一次情報。毎日更新。研究文脈の強化 |
+| Dev.to | 英語dev。Qiitaの英語版的立ち位置 |
+| MIT Technology Review | 技術の社会的影響まで踏み込む長文記事 |
+| Reddit r/MachineLearning | 研究者コミュニティ。論文議論が活発 |
+
+---
+
+## D14: TTS エンジン — VOICEVOX → Style-Bert-VITS2
+
+### 背景
+
+Phase 4 で音声出力（synthesize_speech Skill）を追加する際のエンジン選定。
+元設計では VOICEVOX のみ記載。L3 Emotional State との連携を検討した結果、感情パラメータ対応が重要と判明。
+
+### 比較
+
+| 比較軸 | VOICEVOX | Style-Bert-VITS2 |
+|--------|---------|-----------------|
+| 感情パラメータ | なし（話者切替で疑似表現） | joy / sad / anger / surprise を直接指定可能 |
+| L3 感情軸との対応 | 手動マッピング（変換ロジックが複雑） | L3 感情軸と自然対応 |
+| API | REST（シンプル） | REST（シンプル） |
+| 音質 | 高品質 | 高品質 |
+| ローカル実行 | ✅ | ✅ |
+| Apple Silicon (M4) | 動作確認済み | 動作確認済み |
+
+### 決定
+
+- **Phase 4 初期検証**: VOICEVOX（既記載）で基本パイプライン確認
+- **Phase 4 本採用**: Style-Bert-VITS2 に移行（L3 感情パラメータとの直接統合）
+- VOICEVOX は削除せず、フォールバック用として config に残す
+
+### 影響範囲
+
+- `config/characters/zephyr.yaml`, `lynx.yaml` に `tts.engine: style_bert_vits2` を追記（Phase 4 時）
+- `skills/action/synthesize_speech.py` でエンジン切替をサポート（Phase 4 時）
+
+---
+
+## D15: 感情軸設計 — 20軸マスターリスト + キャラクター別 active_axes
+
+### 背景
+
+前セッション（2026-04-01）のレビューで L3 の 7軸設計に以下の問題が発覚：
+- Zephyr / Lynx で感情軸が共通 → キャラクター差が出ない
+- 軸が少なく、コンテンツ受信時の感情表現が単調になる
+
+### 設計
+
+**マスターリスト（20軸）**
+
+| カテゴリ | 軸 |
+|---------|-----|
+| 基本感情（Plutchik 8基本） | joy, sadness, fear, anger, surprise, anticipation, trust, disgust |
+| 強度バリアント | excitement, anxiety, frustration, boredom |
+| 認知 | curiosity, awe, confusion |
+| 社会 | pride, shame |
+| エージェント固有 | satisfaction, restlessness, relief |
+
+**キャラクター別 active_axes**（LLMに問う軸のみ）
+
+| キャラ | active_axes（10軸） | 傾向 |
+|--------|-------------------|------|
+| Zephyr | curiosity, excitement, anticipation, boredom, awe, joy, satisfaction, restlessness, anxiety, pride | 探索・発見系 |
+| Lynx | satisfaction, frustration, curiosity, trust, confusion, anticipation, pride, disgust, relief | 検証・達成系 |
+
+### 決定
+
+- affect_mapping の LLM プロンプトには `active_axes` に含まれる軸のみ出力を要求する
+- 全20軸を毎回評価させない（コスト削減・キャラクター個性強化）
+- `config/characters/zephyr.yaml` / `lynx.yaml` に `emotional_axes.active` フィールドを追加
+
+---
+
+## D16: 感情初期化方針 — Big Five 静的デフォルト値
+
+### 背景
+
+起動時の感情ベクトルを「全軸 0.5（中立）」にするか「LLM生成のキャラらしい初期値」にするかを検討。
+
+### 決定
+
+**Big Five ベースの静的デフォルト値を YAML に手動定義**
+
+- LLM 生成は起動コスト・非決定論性のデメリットがある
+- Big Five から設計者が論理的に初期値を設定（例: high openness → curiosity: 0.65）
+- YAML に `emotional_state_defaults` セクションとして定義
+- 全20軸のうち active_axes に含まれる軸のみ設定。残りはすべて 0.5（中立）
+
+---
+
+## D17: L1 personality記述 — Big Five + personality_prose 併用
+
+### 決定
+
+- **Big Five 数値**: ドリフト計算・affect_mapping delta 算出等の機械処理に使用
+- **personality_prose（2-3文）**: LLM system prompt に含めてキャラクター表現を豊かにする
+- `core_identity.personality_prose` フィールドを YAML に追加（静的定義）
+- `behavioral_descriptors` は設計者向けの仕様書として残す（LLMには渡さない）
+
+---
+
+## D18: 感情ベクトル永続化 — WorkingMemory + JSON ファイル
+
+### 決定
+
+- **WorkingMemory（インメモリ）**: 実行中の高速アクセス用
+- **data/state/emotional_state_{character}.json**: 起動時読み込み・更新時即時書き込み
+- **Qdrant には保存しない**: 現在値1点の保存に vector DB は過剰。類似検索不要
+- 各 semantic point の payload には `affect_delta`（インパクト記録）を保存するが、現在値とは別物
+- 感情の**履歴**が必要になった時点（Phase 3+）で Qdrant episodic への移行を再検討
+
+---
+
+## D19: affect_mapping バッチ化
+
+### 決定
+
+- 複数コンテンツ（filter_relevance 通過分 ~6件）を 1 回の LLM 呼び出しに統合
+- モデル: Qwen3.5-4B（感情 delta 推定は軽量タスク。大型モデル不要）
+- 品質を優先し、バッチサイズの制限は設けない（全通過コンテンツを1バッチ）
+- 出力: `[{item_index: 0, emotional_delta: {curiosity: +0.25, ...}}, ...]` の配列形式
+
+---
+
+## D20: build_persona_context 設計 — コンテキストプロファイル方式
+
+### 背景
+
+Layer 番号（L2, L3 等）での指定は抽象度が低く、Layer 構造の変更時にコードが壊れる問題があった。
+
+### 決定
+
+**`config/characters/context_profiles.yaml` に用途別プロファイルを定義**
+
+- Layer 番号をコードから完全に廃止
+- `build_persona_context(character, profile)` の形式で呼び出す
+- プロファイルの追加・変更はコード変更なしに YAML のみで行う
+
+| プロファイル | 用途 |
+|------------|------|
+| `filter_relevance` | コンテンツのキャラ関連度フィルタリング |
+| `generate_response` | Discord/X への返信生成 |
+| `reflect` | 自己振り返り・自己知識更新 |
+| `store_semantic` | 保存価値・重要度判断 |

@@ -1,0 +1,64 @@
+name: generate_topic_report
+version: "1.0.0"
+category: output
+phase: 3
+description: "特定トピックの深掘りレポートを LLM で生成する"
+
+input:
+  type: object
+  required: [topic, entries]
+  properties:
+    topic:
+      type: string
+      description: "レポート対象トピック（例: Rust、機械学習、量子コンピューティング）"
+    entries:
+      type: array
+      description: "関連エントリ一覧（title, summary, source, url 等を含む dict のリスト）"
+    dry_run:
+      type: boolean
+      description: "True の場合は LLM を呼ばずにバリデーションのみ実行する"
+      default: false
+    model:
+      type: string
+      description: "使用 LLM モデル（省略時: qwen3.5:14b）"
+      nullable: true
+
+output:
+  type: object
+  required: [generated, topic, title, body, entry_count, dry_run]
+  properties:
+    generated:
+      type: boolean
+      description: "生成成功フラグ"
+    topic:
+      type: string
+      description: "対象トピック"
+    title:
+      type: string
+      description: "レポートタイトル（例: Rust レポート）"
+    body:
+      type: string
+      description: "Markdown 本文（エラー時は空文字列）"
+    entry_count:
+      type: integer
+      description: "入力エントリ数"
+    dry_run:
+      type: boolean
+      description: "dry_run フラグ"
+    reason:
+      type: string
+      description: "未生成の理由（dry_run / empty_topic / empty_entries / エラーメッセージ）"
+      nullable: true
+
+llm:
+  backend: "ollama"
+  default_model: "qwen3.5:14b"
+  think: false
+
+trace:
+  log_fields: [generated, topic, entry_count, dry_run, reason, duration_ms, error]
+
+error_handling:
+  llm_error: "generated=false、reason にエラーメッセージを格納して返す"
+  empty_topic: "reason=empty_topic を返す"
+  empty_entries: "reason=empty_entries を返す"
