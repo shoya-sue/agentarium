@@ -29,8 +29,19 @@ from skills.reasoning.plan_task import PlanTaskSkill
 from skills.reasoning.generate_response import GenerateResponseSkill
 from skills.reasoning.build_llm_context import BuildLlmContextSkill
 from skills.action.send_discord import SendDiscordSkill
+from skills.action.post_x import PostXSkill
+from skills.action.reply_x import ReplyXSkill
 from skills.character.build_persona_context import BuildPersonaContextSkill
 from skills.character.update_emotional_state import UpdateEmotionalStateSkill
+from skills.character.update_emotion import UpdateEmotionSkill
+from skills.character.update_character_state import UpdateCharacterStateSkill
+from skills.character.maintain_presence import MaintainPresenceSkill
+from skills.memory.compress_memory import CompressMemorySkill
+from skills.memory.forget_low_value import ForgetLowValueSkill
+from skills.reasoning.generate_goal import GenerateGoalSkill
+from skills.output.generate_daily_digest import GenerateDailyDigestSkill
+from skills.output.generate_topic_report import GenerateTopicReportSkill
+from skills.output.generate_trend_alert import GenerateTrendAlertSkill
 from utils.config import load_yaml_config
 
 # ──────────────────────────────────────────────
@@ -260,6 +271,27 @@ async def _run_agent_loop(settings: dict) -> None:
 
     # アクションスキル
     send_discord = SendDiscordSkill(config_dir=CONFIG_DIR)
+    post_x = PostXSkill()
+    reply_x = ReplyXSkill()
+
+    # キャラクタースキル（Phase 3）
+    update_emotion = UpdateEmotionSkill()
+    update_character_state = UpdateCharacterStateSkill()
+    maintain_presence = MaintainPresenceSkill()
+
+    # 記憶スキル（Phase 3）
+    from qdrant_client import QdrantClient as _QdrantClient
+    _qdrant_client = _QdrantClient(host=qdrant_host, port=qdrant_port)
+    compress_memory = CompressMemorySkill(qdrant_client=_qdrant_client)
+    forget_low_value = ForgetLowValueSkill(qdrant_client=_qdrant_client)
+
+    # 推論スキル（Phase 3）
+    generate_goal = GenerateGoalSkill(llm_client=llm, config_dir=CONFIG_DIR)
+
+    # アウトプットスキル（Phase 3）
+    generate_daily_digest = GenerateDailyDigestSkill(llm_client=llm)
+    generate_topic_report = GenerateTopicReportSkill(llm_client=llm)
+    generate_trend_alert = GenerateTrendAlertSkill(llm_client=llm)
 
     # browse_source ラッパー（AgentLoop から各フィードを個別スキルとして選択可能にする）
     browse_source_skill = BrowseSourceSkill(config_dir=CONFIG_DIR)
@@ -292,8 +324,22 @@ async def _run_agent_loop(settings: dict) -> None:
         # キャラクター
         "build_persona_context": build_persona_context.run,
         "update_emotional_state": update_emotional_state.run,
+        "update_emotion": update_emotion.run,
+        "update_character_state": update_character_state.run,
+        "maintain_presence": maintain_presence.run,
         # アクション
         "send_discord": send_discord.run,
+        "post_x": post_x.run,
+        "reply_x": reply_x.run,
+        # 記憶（Phase 3）
+        "compress_memory": compress_memory.run,
+        "forget_low_value": forget_low_value.run,
+        # 推論（Phase 3）
+        "generate_goal": generate_goal.run,
+        # アウトプット（Phase 3）
+        "generate_daily_digest": generate_daily_digest.run,
+        "generate_topic_report": generate_topic_report.run,
+        "generate_trend_alert": generate_trend_alert.run,
     }
 
     loop = AgentLoop(
