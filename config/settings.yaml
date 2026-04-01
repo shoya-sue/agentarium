@@ -16,8 +16,8 @@ ollama:
 
 qdrant:
   host: "${QDRANT_HOST:-localhost}"
-  port: 6333
-  grpc_port: 6334
+  port: 16333
+  grpc_port: 16334
   collections:
     episodic: "episodic"
     semantic: "semantic"
