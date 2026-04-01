@@ -21,6 +21,8 @@
 | D9 | キャラクター | 6層全実装 | **L1+L6 静的値のみ（Phase 1）** | 動的層はPhase 2-3 |
 | D10 | 埋め込みモデル | nomic-embed-text | **Phase 0 で日本語品質検証** | multilingual-e5系を候補追加 |
 | D11 | X検証優先度 | Phase 0 主要項目 | **Phase 0 後半に移動** | コアパイプライン構築を優先 |
+| D12 | ブラウザソース運用 | google_news/newspicks 有効 | **google_news 無効化・newspicks 無効化** | JS難読化/ログイン必須で取得不可。Google News は RSS 代替 |
+| D13 | RSS情報源選定 | TechCrunch/hnrss.org 含む旧構成 | **高S/N比10フィードに刷新** | ノイズ源除外、Qiita/Zenn/はてブIT/Publickey/Lobsters/Ars Technica 追加 |
 
 ---
 
@@ -250,3 +252,91 @@ Phase 0 後半（2週目）: ブラウザ・X検証
 ```
 
 コアパイプラインが動くことを先に確認し、X検証の結果に関わらずPhase 1に進めるようにする。
+
+---
+
+## D12: ブラウザソース運用 — google_news/newspicks 無効化
+
+### 背景
+
+Phase 0 実装中にブラウザ取得の実用性を検証した結果、2ソースで取得不可能と判明。
+
+### 検証結果
+
+| ソース | 問題 | 対応 |
+|--------|------|------|
+| google_news | JS完全レンダリングSPA。`networkidle` 後でも `article`/`h3` 等の意味的HTML要素が存在しない。ボディは2.4MBだがスクレイピング不可 | `enabled: false`。Google News RSSを`rss_feeds.yaml`に追加して代替 |
+| newspicks | ログイン必須。認証なしでは記事リストが取得できない | `enabled: false`。Phase 2 で Cookie 認証実装後に再有効化 |
+
+### Chromium 安定化フラグ（同時対応）
+
+Docker コンテナ内で `/dev/shm` 共有メモリ不足（デフォルト 64MB）による `Page crashed` が発生。
+`docker-compose.yml` に以下のフラグを追加して解消：
+
+```
+--disable-dev-shm-usage   # /dev/shm → /tmp に切り替え
+--disable-gpu             # GPU レンダリング無効化
+--no-zygote               # プロセス分岐を抑制
+```
+
+### Yahoo News セレクタ修正（同時対応）
+
+`.newsFeed_item` クラスが廃止されており 0件 を返していた。
+ライブDOM確認により `.newsFeed_list > li` に更新（50件確認）。
+`wait_for: networkidle` + `wait_for_selector` を追加してJS レンダリング待機を確実化。
+
+### 有効ソース（修正後）
+
+| ソース | 取得方式 | 間隔 | 取得件数 |
+|--------|---------|------|---------|
+| rss_feeds | RSS直接取得 | 60分 | 20件 |
+| hacker_news | Firebase API | 60分 | 20件 |
+| yahoo_news | ブラウザ（Stealth不要） | 120分 | 20件 |
+| github_trending | ブラウザ（Stealth不要） | 360分 | 14件 |
+
+---
+
+## D13: RSS情報源刷新 — 高S/N比10フィードへの再選定
+
+### 背景
+
+初期構成にTechCrunch（広告・ノイズ多）とhnrss.org/frontpage（HN APIと重複）が含まれており効率が悪かった。
+google_news のブラウザ取得不可（D12）を機に、RSS全体を高S/N比視点で再設計。
+
+### 選定基準
+
+1. **S/N比**: 広告・クリックベイト・重複記事が少ない
+2. **コミュニティフィルタ**: 人気順・ブックマーク数等で自動審査済みのもの優先
+3. **多層化**: 日本語dev / 日本語ニュース / 英語dev の3カテゴリ横断
+4. **キャラクター親和性**: Zephyr（発見・好奇心）・Lynx（深度・根拠）の両方に対応
+
+### 採用フィード（10件）
+
+| フィード | カテゴリ | 言語 | 採用理由 |
+|---------|---------|------|---------|
+| Qiita popular-items | tech_community | ja | 国内最大dev。人気順 = コミュニティ審査済み |
+| Zenn | tech | ja | Qiitaと相補的。技術同人書に近い深さ |
+| はてブ IT hotentry | tech_community | ja | 集合知フィルター。速報性＋キュレーション品質が両立 |
+| Publickey | tech | ja | クラウド/OSS/AI の国内解説。1人編集者による高品質 |
+| Gigazine | tech | ja | 日本語テック/科学の幅広カバー（速報性重視） |
+| Google News RSS | news | ja | D12 でのブラウザ代替。主要ニュース網羅 |
+| Yahoo News top-picks | news | ja | 国内ニュース全般 |
+| Lobsters | tech_community | en | HN招待制版。技術深度はHN以上、ノイズはHN以下 |
+| Ars Technica | tech | en | 長文技術ジャーナリズム。AI/セキュリティの深堀り |
+| The Verge | tech | en | Big Tech速報。コンシューマーテック動向のカバー |
+
+### 除外フィード
+
+| フィード | 除外理由 |
+|---------|---------|
+| TechCrunch | 広告記事・スポンサーコンテンツが多く S/N 比が低い |
+| hnrss.org/frontpage | HN API（hacker_news ソース）と完全重複 |
+
+### 将来候補（Phase 1 以降で追加検討）
+
+| フィード | 理由 |
+|---------|------|
+| arXiv cs.AI/cs.LG | ML/AI論文の一次情報。毎日更新。研究文脈の強化 |
+| Dev.to | 英語dev。Qiitaの英語版的立ち位置 |
+| MIT Technology Review | 技術の社会的影響まで踏み込む長文記事 |
+| Reddit r/MachineLearning | 研究者コミュニティ。論文議論が活発 |
