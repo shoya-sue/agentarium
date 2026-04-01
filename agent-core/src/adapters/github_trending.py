@@ -11,9 +11,10 @@ config/sources/github_trending.yaml (type: browser) に対応
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
-from playwright.async_api import async_playwright
+from rebrowser_playwright.async_api import async_playwright
 
 from .base import BaseAdapter, FetchedItem
 
@@ -64,9 +65,12 @@ class GitHubTrendingAdapter(BaseAdapter):
         fetched_at = self.now_utc()
         items: list[FetchedItem] = []
 
+        # browser コンテナへの CDP 接続 URL（docker-compose 内は http://browser:9222）
+        browser_url = os.environ.get("BROWSER_REMOTE_URL", "http://localhost:9222")
+
         try:
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
+                browser = await p.chromium.connect_over_cdp(browser_url)
                 page = await browser.new_page()
 
                 await page.goto(url, wait_until="domcontentloaded", timeout=30000)
@@ -84,7 +88,8 @@ class GitHubTrendingAdapter(BaseAdapter):
                     if item is not None:
                         items.append(item)
 
-                await browser.close()
+                await page.close()
+                # browser.close() は呼ばない（共有リモートブラウザのため）
 
         except Exception as exc:
             logger.error("GitHub Trending 取得エラー: %s", exc)

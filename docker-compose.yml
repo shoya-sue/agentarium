@@ -30,25 +30,59 @@ services:
       - ./data/qdrant:/qdrant/storage
     restart: unless-stopped
 
-  # Playwright Stealth ブラウザ（VNC 監視付き）
+  # Playwright Stealth ブラウザ（CDP リモートデバッグ）
   browser:
     image: mcr.microsoft.com/playwright:v1.48.0-jammy
     container_name: agentarium-browser
     ports:
       - "9222:9222"   # CDP（Chrome DevTools Protocol）
-      - "5900:5900"   # VNC（ブラウザ監視用）
+      # 5900: VNC は x11vnc がイメージに含まれないため無効化（Phase 1 以降に別途対応）
     environment:
       - DISPLAY=:99
     volumes:
       - ./data/browser-profile:/browser-profile
-    command: >
-      bash -c "Xvfb :99 -screen 0 1280x720x24 &
-               x11vnc -display :99 -forever -nopw -quiet &
-               chromium-browser --remote-debugging-port=9222
-               --remote-debugging-address=0.0.0.0
-               --no-sandbox --disable-setuid-sandbox
-               --disable-blink-features=AutomationControlled
-               --user-data-dir=/browser-profile"
+    command:
+      - bash
+      - -c
+      - |
+        Xvfb :99 -screen 0 1280x720x24 &
+        sleep 1
+        rm -f /browser-profile/SingletonLock /browser-profile/SingletonSocket /browser-profile/SingletonCookie 2>/dev/null || true
+        CHROME=$$(find /ms-playwright -name chrome -maxdepth 4 -type f | head -1)
+        DISPLAY=:99 "$$CHROME" \
+          --remote-debugging-port=9223 \
+          --remote-allow-origins=* \
+          --no-sandbox \
+          --disable-setuid-sandbox \
+          --disable-blink-features=AutomationControlled \
+          --user-data-dir=/browser-profile &
+        sleep 3
+        exec node -e "
+          const http=require('http'),net=require('net');
+          const s=http.createServer((req,res)=>{
+            const h=(req.headers.host||'browser').split(':')[0];
+            const o={hostname:'127.0.0.1',port:9223,path:req.url,method:req.method,headers:{...req.headers,host:'127.0.0.1:9223'}};
+            const p=http.request(o,r=>{
+              let b='';
+              r.on('data',d=>b+=d.toString());
+              r.on('end',()=>{
+                const rb=b.replace(/127\\.0\\.0\\.1:9223/g,h+':9222');
+                const nh={...r.headers,'content-length':Buffer.byteLength(rb).toString()};
+                res.writeHead(r.statusCode,nh);res.end(rb);
+              });
+            });
+            req.pipe(p);p.on('error',e=>res.end());
+          });
+          s.on('upgrade',(req,sock,head)=>{
+            const c=net.connect(9223,'127.0.0.1',()=>{
+              const hd=Object.entries({...req.headers,host:'127.0.0.1:9223'}).map(([k,v])=>k+': '+v).join('\r\n');
+              c.write(req.method+' '+req.url+' HTTP/'+req.httpVersion+'\r\n'+hd+'\r\n\r\n');
+              if(head.length)c.write(head);
+            });
+            sock.pipe(c);c.pipe(sock);
+            sock.on('error',()=>c.destroy());c.on('error',()=>sock.destroy());
+          });
+          s.listen(9222,'0.0.0.0',()=>console.log('CDP proxy ready on 0.0.0.0:9222'));"
     restart: unless-stopped
 
   # Agent Core（Python 3.12 自律 Agent 本体）
@@ -60,9 +94,11 @@ services:
     depends_on:
       - qdrant
       - embed
+      - browser
     environment:
       - QDRANT_URL=http://qdrant:6333
       - EMBED_URL=http://embed:8001
+      - BROWSER_REMOTE_URL=http://browser:9222
       - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}

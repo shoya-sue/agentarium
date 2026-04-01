@@ -26,7 +26,7 @@ from utils.config import load_yaml_config
 # ──────────────────────────────────────────────
 # ディレクトリ設定（実行ディレクトリ基準）
 # ──────────────────────────────────────────────
-BASE_DIR = Path(__file__).parent.parent.parent  # agentarium/
+BASE_DIR = Path(__file__).parent.parent  # /app（コンテナ内: /app/src/main.py）
 CONFIG_DIR = BASE_DIR / "config"
 DATA_DIR = BASE_DIR / "data"
 TRACES_DIR = DATA_DIR / "traces"

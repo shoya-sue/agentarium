@@ -16,10 +16,11 @@ Phase 0 検証: stealth 不要なサイトは通常の Playwright で取得可�
 from __future__ import annotations
 
 import logging
+import os
 import re
 from typing import Any
 
-from playwright.async_api import async_playwright, ElementHandle
+from rebrowser_playwright.async_api import async_playwright, ElementHandle
 
 from .base import BaseAdapter, FetchedItem
 
@@ -78,9 +79,12 @@ class NewsBrowserAdapter(BaseAdapter):
         fetched_at = self.now_utc()
         items: list[FetchedItem] = []
 
+        # browser コンテナへの CDP 接続 URL（docker-compose 内は http://browser:9222）
+        browser_url = os.environ.get("BROWSER_REMOTE_URL", "http://localhost:9222")
+
         try:
             async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True)
+                browser = await p.chromium.connect_over_cdp(browser_url)
                 context = await browser.new_context(
                     user_agent=(
                         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -113,7 +117,8 @@ class NewsBrowserAdapter(BaseAdapter):
                     if item is not None:
                         items.append(item)
 
-                await browser.close()
+                await context.close()
+                # browser.close() は呼ばない（共有リモートブラウザのため）
 
         except Exception as exc:
             logger.error("%s 取得エラー: %s", self._source_id, exc)
