@@ -1,0 +1,16 @@
+# reflect user prompt
+# WorkingMemory.to_summary_dict() の出力を渡して振り返りを依頼する
+template_name: reflect_user
+version: "1.0.0"
+description: "今サイクルの実行記録を渡して振り返りを依頼する user prompt"
+
+content: |
+  ## 今サイクルの実行記録
+  {working_memory_json}
+
+  上記の実行記録をもとに、このサイクルの振り返りを JSON 形式で出力してください。
+
+variables:
+  - name: working_memory_json
+    description: "WorkingMemory.to_summary_dict() を JSON 文字列化したもの"
+    required: true

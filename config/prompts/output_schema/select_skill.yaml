@@ -1,0 +1,35 @@
+# select_skill の出力 JSON スキーマ
+schema:
+  type: object
+  required: [selected_skill, params, reasoning, confidence]
+  properties:
+    selected_skill:
+      type: string
+      description: "選択された Skill 名。すべきことがない場合は IDLE"
+    params:
+      type: object
+      description: "選択した Skill に渡すパラメータ（空の場合は {}）"
+    reasoning:
+      type: string
+      description: "選択理由（1〜2 文）"
+    confidence:
+      type: number
+      minimum: 0.0
+      maximum: 1.0
+      description: "確信度（0.0〜1.0）"
+
+example: |
+  {
+    "selected_skill": "browse_source",
+    "params": {"source_name": "hacker_news"},
+    "reasoning": "HN を巡回する時間帯であり、未収集の記事が存在する可能性が高い",
+    "confidence": 0.85
+  }
+
+fallback_example: |
+  {
+    "selected_skill": "IDLE",
+    "params": {},
+    "reasoning": "現在は特にすべきタスクがなく、次のサイクルまで待機する",
+    "confidence": 1.0
+  }

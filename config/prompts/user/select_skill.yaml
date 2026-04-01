@@ -1,0 +1,20 @@
+# select_skill user prompt
+# 現在の状態と利用可能なスキルを LLM に提示する
+template_name: select_skill_user
+version: "1.0.0"
+description: "現在の状態と利用可能な Skill を提示する user prompt"
+
+content: |
+  現在の状態:
+  {current_state_json}
+
+  利用可能なスキル:
+  {available_skills_json}
+
+  最適なスキルを 1 つ選択し、JSON 形式で返してください。
+
+variables:
+  - name: current_state_json
+    description: "WorkingMemory.to_summary_dict() を JSON シリアライズした文字列"
+  - name: available_skills_json
+    description: "available_skills リストを JSON シリアライズした文字列"

@@ -1,0 +1,68 @@
+name: reflect
+version: "1.0.0"
+category: reasoning
+phase: 2
+description: "1サイクルの実行記録を振り返り、達成事項・失敗・学習事項・次サイクルへの提案を LLM で生成する"
+
+input:
+  type: object
+  required: [working_memory]
+  properties:
+    working_memory:
+      type: object
+      description: "WorkingMemory.to_summary_dict() の出力"
+    model:
+      type: string
+      description: "使用モデル（省略時: qwen3.5:14b）"
+
+output:
+  type: object
+  required: [cycle_summary, achievements, failures, key_learnings, next_cycle_suggestions, self_evaluation_score, model_used]
+  properties:
+    cycle_summary:
+      type: string
+      description: "今サイクルの活動まとめ（1-2文）"
+    achievements:
+      type: array
+      items:
+        type: string
+      description: "達成事項リスト"
+    failures:
+      type: array
+      items:
+        type: string
+      description: "失敗・問題点リスト"
+    key_learnings:
+      type: array
+      items:
+        type: string
+      description: "学習事項リスト"
+    next_cycle_suggestions:
+      type: array
+      items:
+        type: string
+      description: "次サイクルへの提案リスト"
+    self_evaluation_score:
+      type: number
+      minimum: 0.0
+      maximum: 1.0
+      description: "自己評価スコア（0.0〜1.0）"
+    model_used:
+      type: string
+      description: "使用したモデル名"
+
+llm:
+  backend: "ollama"
+  routing_ref: "config/llm/routing.yaml#routing_rules.explicit.reflect"
+  default_model: "qwen3.5:14b"
+  think: false
+
+safety:
+  ref: "config/safety.yaml#skill_limits.reflect"
+
+trace:
+  log_fields: [self_evaluation_score, achievements, key_learnings, duration_ms, error]
+
+error_handling:
+  parse_failure: "フォールバック値を返す（空リスト + score=0.5 + parse_failed の cycle_summary）"
+  timeout: "フォールバック値を返す（LLM タイムアウト時）"

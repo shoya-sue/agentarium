@@ -3,12 +3,16 @@ main.py — Agentarium agent-core エントリポイント
 
 Phase 1: browse_source → store_episodic / store_semantic パイプラインを
 ルールベーススケジューラで実行する。
+
+Phase 2: ENABLE_AGENT_LOOP=true の場合、LLM 駆動の AgentLoop を
+PatrolScheduler と並行して起動する。
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -151,25 +155,103 @@ async def run_once(engine: SkillEngine, source_id: str, max_items: int = 20) -> 
     )
 
 
+async def _run_patrol_scheduler(engine: SkillEngine) -> None:
+    """
+    Phase 1 PatrolScheduler を実行する非同期タスク。
+
+    エラーが発生してもログに記録してタスクを継続する。
+    """
+    logger = logging.getLogger(__name__)
+    from scheduler.patrol_scheduler import PatrolScheduler
+
+    async def patrol_handler(source_id: str) -> list[dict]:
+        """PatrolScheduler から呼び出されるハンドラ。"""
+        return await engine.run("browse_source", {"source_id": source_id, "max_items": 20})
+
+    scheduler = PatrolScheduler(
+        config_dir=CONFIG_DIR,
+        handler=patrol_handler,
+    )
+    try:
+        await scheduler.start()
+        # PatrolScheduler.start() は非ブロッキングなので、ここで待機ループを回す
+        while True:
+            await asyncio.sleep(60)
+    except asyncio.CancelledError:
+        logger.info("PatrolScheduler タスクがキャンセルされました")
+        await scheduler.stop()
+        raise
+    except Exception as exc:
+        logger.error("PatrolScheduler でエラー: %s", exc)
+        await scheduler.stop()
+
+
+async def _run_agent_loop(settings: dict) -> None:
+    """
+    Phase 2 AgentLoop を実行する非同期タスク。
+
+    ENABLE_AGENT_LOOP=true の場合のみ呼び出す。
+    エラーが発生してもログに記録してタスクを継続する。
+    """
+    logger = logging.getLogger(__name__)
+    from scheduler.agent_loop import AgentLoop
+
+    # AgentLoop の設定（settings.yaml または環境変数から取得）
+    agent_cfg = settings.get("agent", {})
+    character_name: str = agent_cfg.get("character_name", "agent_character")
+    cycle_interval: float = float(agent_cfg.get("agent_loop_interval_seconds", 60.0))
+
+    loop = AgentLoop(
+        character_name=character_name,
+        cycle_interval_seconds=cycle_interval,
+        config_dir=CONFIG_DIR,
+    )
+
+    try:
+        await loop.start()
+    except asyncio.CancelledError:
+        logger.info("AgentLoop タスクがキャンセルされました")
+        await loop.stop()
+        raise
+    except Exception as exc:
+        logger.error("AgentLoop でエラー: %s", exc)
+        await loop.stop()
+
+
 async def main() -> None:
     """メインエントリポイント"""
     settings = load_yaml_config(CONFIG_DIR / "settings.yaml")
     _setup_logging(settings.get("agent", {}).get("log_level", "INFO"))
 
     logger = logging.getLogger(__name__)
-    logger.info("Agentarium agent-core 起動 (Phase 1)")
+
+    # Phase 2 AgentLoop の有効フラグ（環境変数で制御、デフォルト: false）
+    enable_agent_loop: bool = os.environ.get("ENABLE_AGENT_LOOP", "false").lower() == "true"
+
+    if enable_agent_loop:
+        logger.info("Agentarium agent-core 起動 (Phase 2: PatrolScheduler + AgentLoop)")
+    else:
+        logger.info("Agentarium agent-core 起動 (Phase 1: PatrolScheduler のみ)")
 
     engine = await build_engine(settings)
 
-    # Phase 1: 主要ソースを順番に巡回（スケジューラは Phase 1 後半で実装）
-    sources = ["hacker_news", "rss_feeds", "github_trending"]
-    for source_id in sources:
-        try:
-            await run_once(engine, source_id, max_items=20)
-        except Exception as exc:
-            logger.error("ソース '%s' でエラー: %s", source_id, exc)
+    # Phase 1: PatrolScheduler タスクを作成
+    tasks = [asyncio.create_task(_run_patrol_scheduler(engine), name="patrol_scheduler")]
 
-    logger.info("Agentarium agent-core 終了")
+    # Phase 2: ENABLE_AGENT_LOOP=true の場合のみ AgentLoop を追加
+    if enable_agent_loop:
+        tasks.append(asyncio.create_task(_run_agent_loop(settings), name="agent_loop"))
+
+    try:
+        # どちらかのタスクが失敗してももう一方は継続する
+        await asyncio.gather(*tasks, return_exceptions=True)
+    except asyncio.CancelledError:
+        logger.info("メインタスクがキャンセルされました")
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+    finally:
+        logger.info("Agentarium agent-core 終了")
 
 
 if __name__ == "__main__":

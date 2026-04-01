@@ -1,0 +1,23 @@
+# generate_response user prompt
+# トリガーとプラットフォーム固有の指示を組み立てる
+template_name: generate_response_user
+version: "1.0.0"
+description: "返答生成のトリガーとプラットフォーム指示の user prompt"
+
+content: |
+  ## トリガー
+  {trigger}
+
+  ## 指示
+  {platform_instruction}
+
+  上記トリガーに対して、キャラクターとして自然な返答を生成してください。
+  返答本文のみを出力してください（前置きや説明は不要です）。
+
+variables:
+  - name: trigger
+    description: "返答のトリガーとなったイベント/メッセージ"
+    required: true
+  - name: platform_instruction
+    description: "プラットフォーム固有の制約指示"
+    required: true

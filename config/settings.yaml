@@ -21,7 +21,7 @@ qdrant:
   collections:
     episodic: "episodic"
     semantic: "semantic"
-    # procedural: "procedural"  # Phase 2 で追加
+    procedural: "procedural"   # Phase 2 で追加
     # character: "character"    # Phase 3 で追加
 
 browser:
@@ -47,3 +47,10 @@ safety:
 llm:
   routing: "config/llm/routing.yaml"
   context_limits: "config/llm/context_limits.yaml"
+
+discord:
+  webhook_url: ""  # 環境変数 DISCORD_WEBHOOK_URL で上書き
+  default_username: "Agentarium"
+  max_message_length: 2000
+  channels:
+    general: ""  # 環境変数 DISCORD_CHANNEL_GENERAL で上書き

@@ -1,0 +1,63 @@
+name: evaluate_importance
+version: "1.0.0"
+category: memory
+phase: 2
+description: "コンテンツの重要度を LLM で判定し、0.0〜1.0 のスコアを返す。軽量判定のため qwen3.5:4b を使用。"
+
+input:
+  type: object
+  required: [content, source]
+  properties:
+    content:
+      type: string
+      description: "評価対象テキスト（記事・ツイート・コメントなど）"
+    source:
+      type: string
+      description: "情報ソース名（例: github_trending, hacker_news, rss_feed）"
+    context:
+      type: string
+      description: "追加コンテキスト（省略可能）"
+    model:
+      type: string
+      description: "使用モデル（省略時は qwen3.5:4b）"
+
+output:
+  type: object
+  required: [importance_score, reasoning, topics, should_store]
+  properties:
+    importance_score:
+      type: number
+      description: "重要度スコア（0.0〜1.0）"
+    reasoning:
+      type: string
+      description: "判定理由（1〜2 文）"
+    topics:
+      type: array
+      items:
+        type: string
+      description: "抽出されたトピックタグ（最大 5 件）"
+    should_store:
+      type: boolean
+      description: "importance_score >= 0.4 の場合 true（記憶への保存推奨）"
+
+llm:
+  backend: "ollama"
+  default_model: "qwen3.5:4b"
+  think: false
+  prompts:
+    system: "config/prompts/system/evaluate_importance.yaml"
+    user: "config/prompts/user/evaluate_importance.yaml"
+    output_schema: "config/prompts/output_schema/evaluate_importance.yaml"
+
+fallback:
+  on_parse_error:
+    importance_score: 0.5
+    reasoning: "LLM 出力のパースに失敗しました。デフォルト値を使用します。"
+    topics: []
+    should_store: true
+
+safety:
+  ref: "config/safety.yaml#skill_limits.evaluate_importance"
+
+trace:
+  log_fields: [source, importance_score, should_store, topics, duration_ms, error]

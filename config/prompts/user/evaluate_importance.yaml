@@ -1,0 +1,25 @@
+# 重要度評価 user prompt テンプレート
+template_name: evaluate_importance_user
+version: "1.0.0"
+description: "評価対象コンテンツとソース情報を渡す user prompt"
+
+content: |
+  以下のコンテンツの重要度を評価してください。
+
+  ## ソース
+  {source}
+
+  ## コンテンツ
+  {content}
+
+  {context_section}
+
+  重要度スコア・判定理由・抽出トピックを JSON で返してください。
+
+variables:
+  - name: source
+    description: "情報ソース名（例: github_trending, hacker_news, rss）"
+  - name: content
+    description: "評価対象のテキストコンテンツ"
+  - name: context_section
+    description: "追加コンテキスト（省略可能、空文字の場合は出力しない）"

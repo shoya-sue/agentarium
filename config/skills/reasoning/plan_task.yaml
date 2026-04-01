@@ -1,0 +1,80 @@
+name: plan_task
+version: "1.0.0"
+category: reasoning
+phase: 2
+description: "目標と利用可能な Skill から、複数ステップの実行計画を LLM で生成する"
+
+input:
+  type: object
+  required: [goal, available_skills]
+  properties:
+    goal:
+      type: string
+      description: "達成すべき目標の記述"
+    available_skills:
+      type: array
+      description: "利用可能な Skill リスト [{name, description, when_to_use}, ...]"
+      items:
+        type: object
+        required: [name, description]
+        properties:
+          name:
+            type: string
+          description:
+            type: string
+          when_to_use:
+            type: string
+    context:
+      type: object
+      description: "追加コンテキスト（直前の実行結果など）（省略可）"
+    max_steps:
+      type: integer
+      default: 5
+      description: "最大ステップ数（デフォルト: 5）"
+    model:
+      type: string
+      description: "使用モデル（省略時: qwen3.5:35b-a3b）"
+
+output:
+  type: object
+  required: [steps, estimated_duration_sec]
+  properties:
+    steps:
+      type: array
+      description: "実行ステップリスト"
+      items:
+        type: object
+        required: [skill, params, expected_outcome, order]
+        properties:
+          skill:
+            type: string
+            description: "実行する Skill 名"
+          params:
+            type: object
+            description: "Skill に渡すパラメータ"
+          expected_outcome:
+            type: string
+            description: "期待する結果の記述"
+          order:
+            type: integer
+            description: "実行順序（0 始まり）"
+    estimated_duration_sec:
+      type: integer
+      description: "推定所要時間（秒）"
+
+llm:
+  backend: "ollama"
+  routing_ref: "config/llm/routing.yaml#routing_rules.explicit.plan_task"
+  default_model: "qwen3.5:35b-a3b"
+  think: false
+
+safety:
+  ref: "config/safety.yaml#skill_limits.llm_call"
+
+trace:
+  log_fields: [steps_count, estimated_duration_sec, duration_ms, error]
+
+error_handling:
+  parse_failure: "空の計画にフォールバック（steps=[], estimated_duration_sec=0）"
+  invalid_skill: "該当ステップを除外して残りを返す"
+  timeout: "空の計画にフォールバック"

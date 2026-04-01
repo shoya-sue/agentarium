@@ -1,0 +1,15 @@
+# generate_response output schema
+# LLM の出力は JSON でなく自由テキスト（返答そのもの）
+template_name: generate_response_output_schema
+version: "1.0.0"
+description: "generate_response の出力スキーマ（自由テキスト出力）"
+
+output_format: free_text
+description: |
+  LLM の出力は JSON ではなく、返答本文そのものを自由テキストで返す。
+  result["content"] を直接 response_text として使用する。
+
+notes:
+  - "JSON 形式不要 — 返答テキストをそのまま出力する"
+  - "前置きや説明文は不要"
+  - "キャラクターとして自然な返答本文のみを出力する"

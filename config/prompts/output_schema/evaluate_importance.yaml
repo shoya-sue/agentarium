@@ -1,0 +1,23 @@
+# 重要度評価の出力 JSON スキーマ
+schema:
+  type: object
+  required: [importance_score, reasoning, topics]
+  properties:
+    importance_score:
+      type: number
+      description: "重要度スコア（0.0〜1.0）。1.0 に近いほど重要"
+    reasoning:
+      type: string
+      description: "重要度の判定理由（1〜2 文）"
+    topics:
+      type: array
+      items:
+        type: string
+      description: "コンテンツから抽出されたトピックタグ（最大 5 件）"
+
+example: |
+  {
+    "importance_score": 0.85,
+    "reasoning": "新しいアーキテクチャの発表で技術的インパクトが大きく、関連プロジェクトへの影響が高い",
+    "topics": ["LLM", "アーキテクチャ", "OSS", "Qwen", "ローカルAI"]
+  }

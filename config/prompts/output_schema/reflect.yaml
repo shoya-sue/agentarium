@@ -1,0 +1,43 @@
+# reflect の出力 JSON スキーマ
+schema:
+  type: object
+  required: [cycle_summary, achievements, failures, key_learnings, next_cycle_suggestions, self_evaluation_score]
+  properties:
+    cycle_summary:
+      type: string
+      description: "今サイクルの活動まとめ（1-2文）"
+    achievements:
+      type: array
+      items:
+        type: string
+      description: "達成事項リスト（空リスト可）"
+    failures:
+      type: array
+      items:
+        type: string
+      description: "失敗・問題点リスト（空リスト可）"
+    key_learnings:
+      type: array
+      items:
+        type: string
+      description: "このサイクルで得た学習事項（空リスト可）"
+    next_cycle_suggestions:
+      type: array
+      items:
+        type: string
+      description: "次サイクルへの具体的な提案（空リスト可）"
+    self_evaluation_score:
+      type: number
+      minimum: 0.0
+      maximum: 1.0
+      description: "自己評価スコア（0.0=完全失敗, 1.0=完璧）"
+
+example: |
+  {
+    "cycle_summary": "HN からAI関連記事を5件収集し、意味記憶に保存した。",
+    "achievements": ["AI記事を5件収集", "意味記憶への保存成功"],
+    "failures": [],
+    "key_learnings": ["HN は平日午前に更新頻度が高い"],
+    "next_cycle_suggestions": ["GitHub trending も収集対象に追加する"],
+    "self_evaluation_score": 0.8
+  }

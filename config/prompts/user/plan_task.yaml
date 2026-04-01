@@ -1,0 +1,24 @@
+# plan_task user prompt
+# 目標・利用可能なスキル・追加コンテキストを LLM に提示する
+template_name: plan_task_user
+version: "1.0.0"
+description: "目標と利用可能な Skill を提示する user prompt"
+
+content: |
+  ## 目標
+  {goal}
+
+  ## 利用可能なスキル
+  {available_skills_json}
+
+  {context_section}
+
+  上記の目標を達成するための実行計画を JSON 形式で返してください。
+
+variables:
+  - name: goal
+    description: "達成すべき目標の記述"
+  - name: available_skills_json
+    description: "available_skills リストを JSON シリアライズした文字列"
+  - name: context_section
+    description: "追加コンテキストセクション（省略可、空の場合はセクションごと省略）"

@@ -1,0 +1,63 @@
+name: generate_response
+version: "1.0.0"
+category: reasoning
+phase: 2
+description: "キャラクターとして Discord/X 向けの返答文を LLM で生成する"
+
+input:
+  type: object
+  required: [persona_context, trigger]
+  properties:
+    persona_context:
+      type: object
+      description: "BuildPersonaContextSkill の出力（persona_prompt, style_instructions, motivation_context を含む）"
+    trigger:
+      type: string
+      description: "返答のトリガーとなったイベント/メッセージ"
+    context_messages:
+      type: array
+      description: "追加文脈（OpenAI messages 形式）"
+    platform:
+      type: string
+      enum: [discord, x]
+      default: discord
+      description: "出力先プラットフォーム"
+    model:
+      type: string
+      description: "使用モデル（省略時: qwen3.5:14b）"
+
+output:
+  type: object
+  required: [response_text, character_name, platform, model_used, token_estimate]
+  properties:
+    response_text:
+      type: string
+      description: "生成されたレスポンス本文（エラー時は空文字列）"
+    character_name:
+      type: string
+      description: "ペルソナ名"
+    platform:
+      type: string
+      description: "使用プラットフォーム"
+    model_used:
+      type: string
+      description: "使用したモデル名"
+    token_estimate:
+      type: integer
+      description: "response_text の文字数 / 4"
+
+llm:
+  backend: "ollama"
+  routing_ref: "config/llm/routing.yaml#routing_rules.explicit.generate_response"
+  default_model: "qwen3.5:14b"
+  think: false
+
+safety:
+  ref: "config/safety.yaml#skill_limits.generate_response"
+
+trace:
+  log_fields: [character_name, platform, token_estimate, duration_ms, error]
+
+error_handling:
+  llm_error: "response_text = '' を返す（空文字列フォールバック）"
+  missing_persona_prompt: "ValueError を raise する"

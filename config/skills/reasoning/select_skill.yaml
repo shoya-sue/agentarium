@@ -1,0 +1,68 @@
+name: select_skill
+version: "1.0.0"
+category: reasoning
+phase: 2
+description: "利用可能な Skill リストと現在の状態から、LLM が次に実行すべき Skill と引数を選択する"
+
+input:
+  type: object
+  required: [available_skills, current_state]
+  properties:
+    available_skills:
+      type: array
+      description: "選択肢の Skill リスト [{name, description, when_to_use}, ...]"
+      items:
+        type: object
+        required: [name, description]
+        properties:
+          name:
+            type: string
+          description:
+            type: string
+          when_to_use:
+            type: string
+    current_state:
+      type: object
+      description: "WorkingMemory.to_summary_dict() の出力"
+    persona_context:
+      type: object
+      description: "build_persona_context の出力（省略可）"
+    model:
+      type: string
+      description: "使用モデル（省略時: qwen3.5:35b-a3b）"
+
+output:
+  type: object
+  required: [selected_skill, params, reasoning, confidence]
+  properties:
+    selected_skill:
+      type: string
+      description: "選択された Skill 名（存在しない場合は IDLE）"
+    params:
+      type: object
+      description: "その Skill に渡すパラメータ"
+    reasoning:
+      type: string
+      description: "選択理由"
+    confidence:
+      type: number
+      minimum: 0.0
+      maximum: 1.0
+      description: "確信度（0.0〜1.0）"
+
+llm:
+  backend: "ollama"
+  routing_ref: "config/llm/routing.yaml#routing_rules.explicit.select_skill"
+  default_model: "qwen3.5:35b-a3b"
+  think: false
+
+safety:
+  ref: "config/safety.yaml#skill_limits.llm_call"
+
+trace:
+  log_fields: [selected_skill, confidence, reasoning, duration_ms, error]
+
+error_handling:
+  parse_failure: "IDLE フォールバック（selected_skill=IDLE, confidence=0.0）"
+  invalid_skill: "IDLE フォールバック（存在しない Skill 名が選ばれた場合）"
+  timeout: "IDLE フォールバック（LLM タイムアウト時）"

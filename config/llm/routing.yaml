@@ -21,17 +21,17 @@ ollama_defaults:
 routing_rules:
   # --- 明示的ルール（Skill名で直接指定）---
   explicit:
-    # Phase 2 で追加予定
-    # select_skill: qwen3.5-35b-a3b
-    # plan_task: qwen3.5-35b-a3b
-    # generate_goal: qwen3.5-35b-a3b
-    # reflect: qwen3.5-14b
-    # generate_response: qwen3.5-14b
-    # send_discord: qwen3.5-14b
-    # compress_memory: qwen3.5-14b
+    # Phase 2 Skill（Batch 3 で有効化）
+    select_skill: qwen3.5:35b-a3b    # 意思決定コア（大型モデル必須）
+    plan_task: qwen3.5:35b-a3b       # 計画立案（大型モデル必須）
+    generate_goal: qwen3.5:35b-a3b   # 目標生成
+    reflect: qwen3.5:14b             # 振り返り（中型モデル）
+    generate_response: qwen3.5:14b   # キャラクター応答生成
+    send_discord: null               # LLM 不使用
+    compress_memory: qwen3.5:14b     # 記憶圧縮
 
     # Phase 1 で使用
-    store_semantic: qwen3.5-4b       # 知識抽出
+    store_semantic: qwen3.5:4b       # 知識抽出
 
   # --- カテゴリベースのフォールバック ---
   category_default:

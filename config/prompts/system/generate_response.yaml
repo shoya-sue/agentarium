@@ -1,0 +1,24 @@
+# generate_response system prompt
+# キャラクターとして Discord/X 向けの返答文を生成する
+template_name: generate_response_system
+version: "1.0.0"
+description: "キャラクターのペルソナに基づいた返答生成の system prompt"
+
+content: |
+  {persona_prompt}
+
+  {style_instructions}
+
+  {motivation_context}
+
+variables:
+  - name: persona_prompt
+    description: "BuildPersonaContextSkill が生成したペルソナプロンプト"
+    required: true
+  - name: style_instructions
+    description: "スタイル指示（文体・語尾・絵文字等）"
+    required: true
+  - name: motivation_context
+    description: "現在のモチベーションコンテキスト（オプション）"
+    required: false
+    default: ""

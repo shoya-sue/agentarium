@@ -1,0 +1,53 @@
+name: build_persona_context
+version: "1.0.0"
+category: character
+phase: 2
+description: "キャラクター YAML を読み込み、LLM に渡すペルソナコンテキストを組み立てる。LLM は呼び出さない。"
+
+input:
+  type: object
+  required: [character_name]
+  properties:
+    character_name:
+      type: string
+      description: "キャラクター名 'zephyr' | 'lynx'"
+      enum: [zephyr, lynx]
+    platform:
+      type: string
+      description: "出力先プラットフォーム 'discord' | 'x' | null"
+      enum: [discord, x]
+      nullable: true
+    dialogue_partner_context:
+      type: object
+      description: "対話相手の直前発言サマリ（任意）"
+      nullable: true
+
+output:
+  type: object
+  required: [persona_prompt, style_instructions, motivation_context, character_name, token_count]
+  properties:
+    persona_prompt:
+      type: string
+      description: "system prompt に挿入するペルソナ記述（名前・一人称・性格・役割）"
+    style_instructions:
+      type: string
+      description: "文体・語尾・絵文字使用等のスタイル指示"
+    motivation_context:
+      type: string
+      description: "L2 Motivation のコンテキスト（未定義なら null）"
+      nullable: true
+    character_name:
+      type: string
+      description: "キャラクター名"
+    token_count:
+      type: integer
+      description: "推定トークン数（文字数 / 4）"
+
+config:
+  characters_dir: "config/characters"  # プロジェクトルートからの相対パス
+
+safety:
+  ref: "config/safety.yaml#skill_limits.default"
+
+trace:
+  log_fields: [character_name, platform, token_count]

@@ -1,0 +1,79 @@
+name: build_llm_context
+version: "1.0.0"
+category: reasoning
+phase: 2
+description: "WorkingMemory・recalled_memories・persona_context を LLM messages 配列に組み立てる。LLM は呼び出さない。"
+
+input:
+  type: object
+  required: [target_skill, working_memory]
+  properties:
+    target_skill:
+      type: string
+      description: "コンテキストを構築する対象 Skill 名"
+    working_memory:
+      type: object
+      description: "WorkingMemory.to_summary_dict() の出力"
+    recalled_memories:
+      type: array
+      description: "recall_related の結果（省略時は空リスト）"
+      items:
+        type: object
+        properties:
+          content:
+            type: string
+          score:
+            type: number
+    persona_context:
+      type: object
+      description: "build_persona_context の出力（省略時はペルソナなし）"
+      properties:
+        persona_prompt:
+          type: string
+    max_tokens:
+      type: integer
+      description: "トークン上限（省略時は context_limits.yaml から取得）"
+    model:
+      type: string
+      description: "対象モデル名（トークン配分の参照に使用）"
+
+output:
+  type: object
+  required: [messages, token_estimate, sections_used, truncated_sections]
+  properties:
+    messages:
+      type: array
+      description: "LLM に渡す OpenAI 互換 messages 配列"
+      items:
+        type: object
+        required: [role, content]
+        properties:
+          role:
+            type: string
+            enum: [system, user]
+          content:
+            type: string
+    token_estimate:
+      type: integer
+      description: "大まかなトークン推定（文字数 / 4）"
+    sections_used:
+      type: array
+      items:
+        type: string
+      description: "実際に含まれたセクション名リスト"
+    truncated_sections:
+      type: array
+      items:
+        type: string
+      description: "トークン制限により削減されたセクション名リスト"
+
+llm:
+  uses_llm: false
+  notes: "LLM を呼び出さない。コンテキスト組み立てのみ。"
+
+context_limits:
+  ref: "config/llm/context_limits.yaml"
+  note: "model パラメータに応じたセクション優先度・上限を参照"
+
+trace:
+  log_fields: [target_skill, token_estimate, sections_used, truncated_sections, duration_ms]

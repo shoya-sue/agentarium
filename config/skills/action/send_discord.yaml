@@ -1,0 +1,58 @@
+name: send_discord
+version: "1.0.0"
+category: action
+phase: 2
+description: "Discord Webhook を通じてメッセージを送信する"
+
+input:
+  type: object
+  required: [message]
+  properties:
+    message:
+      type: string
+      description: "送信するメッセージ本文"
+    username:
+      type: string
+      description: "Webhookの表示名（未指定の場合 settings.yaml の default_username を使用）"
+    avatar_url:
+      type: string
+      description: "アバター画像URL"
+    webhook_url:
+      type: string
+      description: "送信先 Webhook URL（未指定の場合は環境変数 → settings.yaml の順で解決）"
+
+output:
+  type: object
+  required: [sent, status_code, message_length, webhook_url_masked]
+  properties:
+    sent:
+      type: boolean
+      description: "送信成功フラグ"
+    status_code:
+      type: integer
+      description: "HTTP ステータスコード（ネットワークエラー時は 0）"
+    message_length:
+      type: integer
+      description: "実際に送信した文字数"
+    webhook_url_masked:
+      type: string
+      description: "URL の末尾20文字のみ（セキュリティのためマスク）"
+    reason:
+      type: string
+      description: "sent=False の場合の理由（空メッセージ: empty_message）"
+
+llm:
+  backend: null  # Action Skill は LLM 不要
+
+safety:
+  ref: "config/safety.yaml#skill_limits.send_discord"
+
+trace:
+  log_fields: [sent, status_code, message_length, duration_ms, error]
+
+error_handling:
+  missing_webhook_url: "ValueError を raise する"
+  empty_message: "sent=False, reason=empty_message を返す"
+  http_error: "sent=False, status_code=<actual> を返す"
+  network_error: "sent=False, status_code=0 を返す"
+  rate_limit_429: "retry_after 秒待機して1回リトライ"

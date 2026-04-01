@@ -1,0 +1,72 @@
+name: store_procedural
+version: "1.0.0"
+category: memory
+phase: 2
+description: "手順・ノウハウ（手続き的知識）を Qdrant の procedural コレクションにベクトル保存する"
+
+input:
+  type: object
+  required: [procedure_name, steps]
+  properties:
+    procedure_name:
+      type: string
+      description: "手順の名前（例: HackerNewsから記事収集）"
+    steps:
+      type: array
+      items:
+        type: string
+      description: "手順のステップリスト"
+    context:
+      type: string
+      description: "手順が有効な文脈・前提条件（省略可）"
+    outcome:
+      type: string
+      description: "期待される結果（省略可）"
+    tags:
+      type: array
+      items:
+        type: string
+      description: "タグリスト（省略可）"
+    source_skill:
+      type: string
+      description: "この手順を学習したスキル名（省略可）"
+    confidence:
+      type: number
+      minimum: 0.0
+      maximum: 1.0
+      description: "信頼度（デフォルト: 1.0）"
+
+output:
+  type: object
+  required: [point_id, procedure_name, steps_count, collection, stored_at]
+  properties:
+    point_id:
+      type: string
+      description: "Qdrant に保存したポイントID（UUID 文字列）"
+    procedure_name:
+      type: string
+      description: "保存した手順名"
+    steps_count:
+      type: integer
+      description: "ステップ数"
+    collection:
+      type: string
+      description: "保存先コレクション名"
+    stored_at:
+      type: string
+      description: "保存日時（ISO 8601）"
+
+qdrant:
+  collection_ref: "config/settings.yaml#qdrant.collections.procedural"
+  vector_dim: 768
+  distance: cosine
+
+embedding:
+  text_fields: [procedure_name, context, steps]
+  server_ref: "config/llm/routing.yaml#embedding_server"
+
+safety:
+  ref: "config/safety.yaml#skill_limits.store_procedural"
+
+trace:
+  log_fields: [point_id, procedure_name, steps_count, duration_ms, error]

@@ -1,0 +1,54 @@
+# plan_task の出力 JSON スキーマ
+schema:
+  type: object
+  required: [steps, estimated_duration_sec]
+  properties:
+    steps:
+      type: array
+      description: "実行ステップリスト（最大 max_steps 件）"
+      items:
+        type: object
+        required: [skill, params, expected_outcome, order]
+        properties:
+          skill:
+            type: string
+            description: "実行する Skill 名（available_skills に存在するもの）"
+          params:
+            type: object
+            description: "Skill に渡すパラメータ（空の場合は {}）"
+          expected_outcome:
+            type: string
+            description: "このステップで期待する結果の記述"
+          order:
+            type: integer
+            minimum: 0
+            description: "実行順序（0 始まり、依存関係を考慮した昇順）"
+    estimated_duration_sec:
+      type: integer
+      minimum: 0
+      description: "全ステップの推定所要時間（秒）"
+
+example: |
+  {
+    "steps": [
+      {
+        "skill": "recall_related",
+        "params": {"query": "AI 最新情報"},
+        "expected_outcome": "関連する過去の記憶が想起される",
+        "order": 0
+      },
+      {
+        "skill": "browse_source",
+        "params": {"source_name": "hacker_news"},
+        "expected_outcome": "HN のトップ記事が収集される",
+        "order": 1
+      },
+      {
+        "skill": "store_semantic",
+        "params": {"collection": "episodic"},
+        "expected_outcome": "重要な情報が記憶に保存される",
+        "order": 2
+      }
+    ],
+    "estimated_duration_sec": 90
+  }

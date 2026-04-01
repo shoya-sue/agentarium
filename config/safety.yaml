@@ -40,6 +40,39 @@ skill_limits:
     max_per_hour: 6
     max_per_day: 24
 
+  # Phase 2 Skill レート制限
+  # reflect は1時間に最大10回（振り返りは頻繁すぎないように）
+  reflect:
+    max_per_hour: 10
+    max_per_day: 100
+
+  # store_procedural は緩めのレート制限
+  store_procedural:
+    max_per_hour: 20
+    max_per_day: 200
+
+  # select_skill（Batch 3 で実装）
+  select_skill:
+    max_per_hour: 60
+    max_per_day: 500
+
+  # plan_task（Batch 3 で実装）
+  plan_task:
+    max_per_hour: 30
+    max_per_day: 300
+
+  # send_discord（Batch 5 で実装）
+  send_discord:
+    hourly_limit: 20
+    daily_limit: 100
+    circuit_breaker_threshold: 3
+
+  # generate_response（Batch 5 で実装）
+  generate_response:
+    hourly_limit: 60
+    daily_limit: 500
+    circuit_breaker_threshold: 5
+
 # アクセス禁止リスト
 blacklist:
   domains: []   # 例: ["malicious.com"]
