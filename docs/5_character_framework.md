@@ -380,3 +380,141 @@ L5 Trust          → source_trust（信頼度の高いソースを優先）
 | 6 層で不足を感じたらどこを分離するか | 運用中のボトルネック分析 | 4+ |
 
 **分離の判断基準**: 「1 つのレイヤー内で変化速度が明らかに異なる 2 つの概念がぶつかる」場合に分離を検討する。
+
+---
+
+## 7. L3 更新トリガー — コンテンツ処理パイプラインとの接続
+
+> 詳細設計: [9_content_processing_pipeline.md](9_content_processing_pipeline.md)
+
+L3 の更新は「Skill 成功/失敗」だけでなく、**コンテンツ受信時の感情マッピング**でも発生する。
+
+### 更新トリガー一覧
+
+| トリガー | 発生タイミング | 実装 Skill |
+|---------|--------------|-----------|
+| `on_skill_success` | Skill 実行成功時 | AgentLoop（既存） |
+| `on_skill_failure` | Skill 実行失敗時 | AgentLoop（既存） |
+| `on_content_received` | **コンテンツ処理パイプライン ④ affect_mapping** | `update_emotional_state`（Phase 2 新設） |
+| `on_user_interaction` | Discord/X でメッセージ受信時 | `update_emotional_state`（Phase 2） |
+
+### affect_mapping の処理フロー
+
+```
+新規コンテンツ取得（タイトル + 要約）
+    ↓
+update_emotional_state Skill
+    │
+    ├─ input:  summary, topics, character_name, current_L3
+    ├─ LLM:   "{character_name} がこの情報を受け取ったとき感情はどう変化するか？"
+    │          （L1 Big Five を system prompt に含める）
+    └─ output: { emotional_delta: { curiosity: +0.2, excitement: +0.1, ... } }
+         ↓
+L3 Emotional State 更新（WorkingMemory）
+         ↓
+┌─────────────────────────────────────┐
+│ 更新された L3 が以下に影響            │
+│  ・select_skill の判断軸             │
+│  ・generate_response のトーン        │
+│  ・synthesize_speech の声質 (Phase 4)│
+│  ・update_avatar_expression (Phase 4)│
+└─────────────────────────────────────┘
+```
+
+### キャラクター別の感情傾向（L1 Big Five との対応）
+
+**Zephyr（openness: 0.85, extraversion: 0.75）**
+
+| コンテンツタイプ | 感情変化 |
+|---------------|---------|
+| AI/OSS の新発見 | curiosity ↑↑, excitement ↑ |
+| 既知情報の繰り返し | boredom ↑ |
+| SNS/コミュニティの炎上 | anxiety わずかに↑ |
+| 自分の関心ドメイン外 | 変化なし（フィルタ棄却） |
+
+**Lynx（conscientiousness: 0.90, neuroticism: 0.30）**
+
+| コンテンツタイプ | 感情変化 |
+|---------------|---------|
+| 実測データ・論文付き記事 | satisfaction ↑ |
+| 根拠不明の主張 | frustration ↑ |
+| 複数ソースで確認できた事実 | satisfaction ↑, curiosity わずかに↑ |
+| 矛盾する情報（contradicts 関係） | curiosity ↑（調査したくなる） |
+
+---
+
+## 8. マルチモーダル出力 — TTS・VTubeStudio との連携
+
+L3 Emotional State は**テキスト出力だけでなく、音声・アバター表情にも直結する**設計。
+
+### 出力モダリティ一覧
+
+```
+L3 Emotional State
+  { curiosity: 0.8, excitement: 0.6, frustration: 0.0 }
+        │
+        ├─── テキスト ────────► generate_response Skill
+        │                        L6 Communication Style で修飾
+        │                        → Discord / X 投稿
+        │
+        ├─── 音声 ────────────► synthesize_speech Skill       (Phase 4)
+        │                        感情値 → 声質パラメータにマッピング
+        │                        → VOICEVOX / Style-Bert-VITS2
+        │
+        └─── アバター表情 ────► update_avatar_expression Skill (Phase 4)
+                                 感情値 → VTubeStudio パラメータ注入
+                                 → WebSocket API
+```
+
+### 実装方針
+
+**アーキテクチャへの影響はゼロ**。Skill 追加 + character YAML への `expression_mapping` セクション追加のみ。
+
+```yaml
+# config/characters/zephyr.yaml（Phase 4 拡張部分）
+expression_mapping:
+  # L3 感情値 → VTubeStudio パラメータ名 + 強度係数
+  vtubestudio:
+    curiosity:
+      param: "BrowRaise"
+      scale: 0.5          # curiosity: 0.8 → BrowRaise: 0.4
+    excitement:
+      param: "MouthSmile"
+      scale: 0.8
+    frustration:
+      param: "BrowFurrow"
+      scale: 0.7
+    satisfaction:
+      param: "EyeSmile"
+      scale: 0.6
+
+  # L3 感情値 → TTS 音声パラメータ
+  tts:
+    engine: "style_bert_vits2"   # または "voicevox"
+    speaker_id: 0
+    emotion_params:
+      excitement: { speed: 1.15, pitch: +0.1 }
+      frustration: { speed: 0.95, pitch: -0.05 }
+      boredom:     { speed: 0.90, energy: -0.2 }
+```
+
+### Skill 実装計画
+
+| Skill | ファイル | Phase | API |
+|-------|---------|-------|-----|
+| `synthesize_speech` | `skills/action/synthesize_speech.py` | **4** | VOICEVOX REST / Style-Bert-VITS2 REST |
+| `update_avatar_expression` | `skills/action/update_avatar_expression.py` | **4** | VTubeStudio WebSocket |
+| `play_audio` | `skills/action/play_audio.py` | **4** | ローカル再生 or VC 配信 |
+
+### Style-Bert-VITS2 を推奨する理由
+
+VOICEVOX（Phase 4 に既記載）との比較：
+
+| 比較軸 | VOICEVOX | Style-Bert-VITS2 |
+|--------|---------|-----------------|
+| 感情パラメータ | なし | joy / sad / anger / surprise を直接指定可能 |
+| L3 との対応 | 手動マッピング必要 | L3 感情軸と自然に対応 |
+| API | REST（シンプル） | REST（シンプル） |
+| 音質 | 高品質 | 高品質 |
+| ローカル実行 | ✅ | ✅ |
+| **推奨** | Phase 4 初期検証用 | **Phase 4 本採用候補** |

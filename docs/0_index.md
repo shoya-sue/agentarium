@@ -4,7 +4,7 @@
 **プロジェクト名**: Agentarium — Autonomous Personal Agent
 **系譜**: Zethi / Prako Discord Agent → 発展型
 **作成日**: 2026-03-31
-**ステータス**: 設計策定完了 + レビュー済み（D1-D11 反映）
+**ステータス**: 設計策定完了 + レビュー済み（D1-D13 反映）
 **元ファイル**: `1_agentarium_design.md`（分割前のオリジナル）
 
 ---
@@ -23,5 +23,8 @@
 
 | # | ファイル | 内容 |
 |---|---------|------|
-| - | [設計レビュー・意思決定ログ](6_decisions.md) | 分析結果とアーキテクチャ意思決定（D1-D11） |
+| - | [設計レビュー・意思決定ログ](6_decisions.md) | 分析結果とアーキテクチャ意思決定（D1-D13） |
 | - | [Phase 0 検証手順書](7_phase0_verification.md) | 具体的なコマンド・期待値・Go/No-Go 判定基準 |
+| - | [Phase 0 検証レポート](8_phase0_report.md) | Docker 動作確認結果、既知の問題と対処 |
+| - | [ダッシュボード仕様](8_dashboard_spec.md) | 監視 UI の仕様・コンポーネント設計 |
+| - | [コンテンツ処理パイプライン](9_content_processing_pipeline.md) | 取得後の処理フロー（要約・事実抽出・感情マッピング） |
