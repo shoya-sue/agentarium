@@ -22,6 +22,8 @@ from typing import Any
 
 import yaml
 
+from utils.config import find_project_root
+
 logger = logging.getLogger(__name__)
 
 
@@ -274,8 +276,8 @@ def load_emotional_state(
 
     # ファイル未存在: character YAML の defaults から初期化
     if characters_dir is None:
-        # agent-core/src/core/ から config/characters/ への相対パス
-        characters_dir = Path(__file__).parent.parent.parent.parent / "config" / "characters"
+        # Docker / ローカル両対応: config/characters/ を上位から探索
+        characters_dir = find_project_root(Path(__file__).resolve().parent) / "config" / "characters"
 
     char_yaml_path = characters_dir / f"{character_name}.yaml"
     if not char_yaml_path.exists():

@@ -21,6 +21,8 @@ from models.llm import LLMClient
 from skills.perception.browse_source import BrowseSourceSkill
 from skills.memory.store_episodic import StoreEpisodicSkill
 from skills.memory.store_semantic import StoreSemanticSkill
+from skills.character.build_persona_context import BuildPersonaContextSkill
+from skills.character.update_emotional_state import UpdateEmotionalStateSkill
 from utils.config import load_yaml_config
 
 # ──────────────────────────────────────────────
@@ -201,10 +203,30 @@ async def _run_agent_loop(settings: dict) -> None:
     character_name: str = agent_cfg.get("character_name", "agent_character")
     cycle_interval: float = float(agent_cfg.get("agent_loop_interval_seconds", 60.0))
 
+    # --- Phase 2 Skill インスタンス生成 ---
+    ollama_cfg = settings.get("ollama", {})
+    llm = LLMClient(
+        base_url=ollama_cfg.get("base_url", "http://localhost:11434"),
+        model=ollama_cfg.get("default_model", "qwen3.5:35b-a3b"),
+        timeout_seconds=int(ollama_cfg.get("timeout_seconds", 30)),
+    )
+
+    build_persona_context = BuildPersonaContextSkill(config_dir=CONFIG_DIR)
+    update_emotional_state = UpdateEmotionalStateSkill(
+        llm_client=llm,
+        config_dir=CONFIG_DIR,
+    )
+
+    skill_registry = {
+        "build_persona_context": build_persona_context.run,
+        "update_emotional_state": update_emotional_state.run,
+    }
+
     loop = AgentLoop(
         character_name=character_name,
         cycle_interval_seconds=cycle_interval,
         config_dir=CONFIG_DIR,
+        skill_registry=skill_registry,
     )
 
     try:

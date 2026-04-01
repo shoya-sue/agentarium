@@ -24,12 +24,14 @@ from typing import Any
 import yaml
 
 from core.working_memory import load_emotional_state, save_emotional_state
+from utils.config import find_project_root
 
 logger = logging.getLogger(__name__)
 
-# プロジェクトルートから config/ への相対パス
-_DEFAULT_CONFIG_DIR = Path(__file__).parent.parent.parent.parent.parent / "config"
-_DEFAULT_STATE_DIR = Path(__file__).parent.parent.parent.parent.parent / "data" / "state"
+# プロジェクトルートから config/ / data/state/ への相対パス（Docker / ローカル両対応）
+_PROJECT_ROOT = find_project_root(Path(__file__).resolve().parent)
+_DEFAULT_CONFIG_DIR = _PROJECT_ROOT / "config"
+_DEFAULT_STATE_DIR = _PROJECT_ROOT / "data" / "state"
 
 # delta の適用範囲
 _SCORE_MIN = 0.0

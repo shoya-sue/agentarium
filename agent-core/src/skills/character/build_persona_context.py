@@ -16,10 +16,12 @@ from typing import Any
 
 import yaml
 
+from utils.config import find_project_root
+
 logger = logging.getLogger(__name__)
 
-# プロジェクトルートから config/ への相対パス
-_DEFAULT_CONFIG_DIR = Path(__file__).parent.parent.parent.parent.parent / "config"
+# プロジェクトルートから config/ への相対パス（Docker / ローカル両対応）
+_DEFAULT_CONFIG_DIR = find_project_root(Path(__file__).resolve().parent) / "config"
 
 # Big Five スコアを人間が読みやすい表現にマッピング
 _BIG_FIVE_LABELS: dict[str, list[tuple[float, str]]] = {
