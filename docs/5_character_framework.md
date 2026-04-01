@@ -162,6 +162,9 @@ core_identity:
     extraversion: 0.0
     agreeableness: 0.0
     neuroticism: 0.0
+  # LLM system prompt に含めるキャラクター性格の prose 記述（D17）
+  # Big Five 数値は機械処理用、prose は LLM への自然言語説明用として併用
+  personality_prose: ""
   behavioral_descriptors:
     when_curious: ""
     when_frustrated: ""
@@ -203,37 +206,86 @@ motivation:
 
 感情が **Skill 選択に直接影響する** 点が最大の差分。
 
+#### 感情軸 マスターリスト（20軸）
+
+全 20 軸が存在しうる感情の語彙。LLM には毎回全軸を問わず、**キャラクター別の `active_axes` に含まれる軸のみ**出力を要求する（D15）。
+
+| カテゴリ | 軸 |
+|---------|-----|
+| 基本感情（Plutchik 8基本） | `joy` `sadness` `fear` `anger` `surprise` `anticipation` `trust` `disgust` |
+| 強度バリアント | `excitement` `anxiety` `frustration` `boredom` |
+| 認知 | `curiosity` `awe` `confusion` |
+| 社会 | `pride` `shame` |
+| エージェント固有 | `satisfaction` `restlessness` `relief` |
+
+#### キャラクター別 active_axes
+
+LLM の affect_mapping プロンプトでは **active_axes の軸のみ**を出力要求する。
+キャラクター YAML の `emotional_axes.active` で定義。
+
+| キャラ | active_axes | 傾向 |
+|--------|------------|------|
+| Zephyr | curiosity, excitement, anticipation, boredom, awe, joy, satisfaction, restlessness, anxiety, pride | 探索・発見系（10軸） |
+| Lynx | satisfaction, frustration, curiosity, trust, confusion, anticipation, pride, disgust, relief | 検証・達成系（9軸） |
+
+#### 感情状態の永続化（D18）
+
+- **WorkingMemory（インメモリ）**: 実行中の高速アクセス
+- **`data/state/emotional_state_{character}.json`**: 起動時読み込み・更新時即時書き込み
+- Qdrant には保存しない（現在値1点の保存にベクトルDBは過剰）
+
+```json
+// data/state/emotional_state_zephyr.json の例
+{
+  "character": "zephyr",
+  "updated_at": "2026-04-01T17:00:00Z",
+  "state": {
+    "curiosity": 0.65,
+    "excitement": 0.50,
+    "anticipation": 0.60,
+    "boredom": 0.30,
+    "awe": 0.50,
+    "joy": 0.50,
+    "satisfaction": 0.50,
+    "restlessness": 0.50,
+    "anxiety": 0.20,
+    "pride": 0.50
+  }
+}
+```
+
+#### 感情の更新と減衰
+
+- **affect_mapping（コンテンツ受信時）**: LLM が active_axes の delta を JSON 出力（バッチ処理, D19）
+- **Skill 実行トリガー**: AgentLoop が rule-based で固定 delta を適用
+- **減衰**: 1時間ごとに中立点（0.5）方向に 0.1 ずつ戻る
+
 ```yaml
-emotional_state:
-  current:
-    curiosity: 0.5
-    satisfaction: 0.5
-    frustration: 0.0
-    excitement: 0.0
-    boredom: 0.0
-    anxiety: 0.0
-    pride: 0.0
-  transitions:
-    on_skill_success: { satisfaction: +0.1, frustration: -0.05, pride: +0.05 }
-    on_skill_failure: { frustration: +0.15, satisfaction: -0.05, anxiety: +0.05 }
-    on_novel_discovery: { curiosity: +0.2, excitement: +0.3, boredom: -0.2 }
-    on_repeated_action: { boredom: +0.1, curiosity: -0.05 }
-    on_user_interaction: { satisfaction: +0.1, boredom: -0.1 }
-  decay:
-    rate_per_hour: 0.1
-    neutral_point: 0.5
-  skill_influence:
-    high_curiosity:
-      boost_skills: [browse_web_page, browse_hacker_news, browse_github_trending]
-      boost_amount: 0.2
-    high_frustration:
-      avoid_skills: [browse_x_timeline, browse_x_search]
-      prefer_skills: [fetch_rss, recall_related]
-    high_boredom:
-      boost_skills: [browse_web_page, browse_github_trending]
-      avoid_skills: [fetch_rss]
-    high_excitement:
-      boost_skills: [send_discord, store_semantic]
+# Skill実行トリガー（ルールベース。LLMは使わない）
+skill_triggers:
+  on_skill_success:   { satisfaction: +0.1, frustration: -0.05, pride: +0.05 }
+  on_skill_failure:   { frustration: +0.15, satisfaction: -0.05, anxiety: +0.05 }
+  on_user_interaction: { satisfaction: +0.1, boredom: -0.1 }
+decay:
+  rate_per_hour: 0.1
+  neutral_point: 0.5
+```
+
+#### Skill 選択への影響
+
+```yaml
+skill_influence:
+  high_curiosity:
+    boost_skills: [browse_source, browse_hacker_news, browse_github_trending]
+    boost_amount: 0.2
+  high_frustration:
+    avoid_skills: [browse_x_timeline, browse_x_search]
+    prefer_skills: [fetch_rss, recall_related]
+  high_boredom:
+    boost_skills: [browse_source, browse_github_trending]
+    avoid_skills: [fetch_rss]
+  high_excitement:
+    boost_skills: [send_discord, store_semantic]
 ```
 
 ### L4: Cognitive State（認知・疲労・自己認識）— 分〜日で変化
@@ -358,14 +410,24 @@ L5 Trust          → source_trust（信頼度の高いソースを優先）
 
 ---
 
-## 5. build_persona_context の Skill 別参照レイヤー
+## 5. build_persona_context — コンテキストプロファイル方式（D20）
 
-| 呼び出し元 Skill | 含めるレイヤー | 理由 |
-|-----------------|--------------|------|
-| `select_skill` | L2 + L3 + L4(疲労のみ) | 行動選択に影響する動的状態のみ |
-| `generate_response` | L1 + L3 + L5 + L6 | キャラクターの「声」に全レイヤー必要 |
-| `reflect` | L4 + L3 | 自己認識と感情が振り返りの質に影響 |
-| `store_semantic` | L2(関心) + L4(自己知識) | 何を重要と判断するかに影響 |
+Layer 番号（L2, L3 等）でのフィールド指定を廃止し、用途別の名前付きプロファイルに置き換える。
+
+```python
+# 呼び出し方
+context = build_persona_context(character="zephyr", profile="filter_relevance")
+```
+
+プロファイルは `config/characters/context_profiles.yaml` で定義する。
+
+| プロファイル名 | 呼び出し元 Skill | 含むフィールド | 理由 |
+|--------------|----------------|--------------|------|
+| `filter_relevance` | `filter_relevance` | interests, active_emotional_axes[curiosity, boredom] | キャラの関心と飽き具合で関連度判定 |
+| `generate_response` | `generate_response` | big_five, personality_prose, communication_style, source_trust, emotional_state(active_axes) | キャラクターの「声」に全情報が必要 |
+| `reflect` | `reflect` | self_knowledge, emotional_state[curiosity, satisfaction, frustration] | 自己認識と感情が振り返りの質に影響 |
+| `store_semantic` | `store_semantic` | interests.primary, self_knowledge.confident_domains | 何を重要と判断するかに影響 |
+| `affect_mapping` | `update_emotional_state` | big_five, personality_prose, emotional_axes.active, emotional_state_defaults | 感情 delta 算出のためのキャラ定義 |
 
 ---
 

@@ -1,0 +1,67 @@
+# キャラクターコンテキストプロファイル定義
+# D20: Layer 番号廃止 → 用途別の名前付きプロファイルに置き換え
+#
+# 使い方:
+#   build_persona_context(character="zephyr", profile="filter_relevance")
+#
+# 各プロファイルは「必要なフィールド」と「含む感情軸」を定義する。
+# フィールド名は character YAML のキーパスで指定。
+
+profiles:
+
+  # ① コンテンツのキャラ関連度フィルタリング
+  filter_relevance:
+    description: "キャラクターの関心と現在の感情状態に基づいてコンテンツの関連度を判定する"
+    fields:
+      - "motivation.primary_goal"
+      - "motivation.interests"          # Phase 2+ で有効（Phase 1 は空）
+    emotional_axes:
+      - curiosity      # 好奇心が高いと関連度閾値が下がる（より多く拾う）
+      - boredom        # 飽きが高いと新規性スコアを重視
+    notes: "Phase 1 では motivation.interests が未定義のため、スコア閾値のみで判定"
+
+  # ② Discord / X への返信生成
+  generate_response:
+    description: "キャラクターの「声」で応答文を生成する。全キャラクター情報が必要"
+    fields:
+      - "core_identity.big_five"
+      - "core_identity.personality_prose"
+      - "core_identity.core_values"
+      - "communication_style.base"
+      - "communication_style.platform_adaptations"  # Phase 2+ で有効
+    emotional_axes: "all_active"        # キャラクターの active_axes を全て含む
+    notes: "emotion_modifiers は Phase 3 で communication_style に追加後、このプロファイルも更新"
+
+  # ③ 自己振り返り（reflect Skill）
+  reflect:
+    description: "Skill 実行後の自己評価・自己知識の更新に使用する"
+    fields:
+      - "core_identity.behavioral_descriptors"
+      - "cognitive_state.self_knowledge"       # Phase 3+ で有効
+      - "cognitive_state.confident_domains"    # Phase 3+ で有効
+    emotional_axes:
+      - curiosity
+      - satisfaction
+      - frustration
+    notes: "Phase 1-2 では self_knowledge が未定義のため、behavioral_descriptors のみ参照"
+
+  # ④ 保存価値・重要度判断（store_semantic Skill）
+  store_semantic:
+    description: "コンテンツの保存価値・重要度を判断する際のキャラクター視点を提供"
+    fields:
+      - "motivation.interests"                 # Phase 2+ で有効
+      - "cognitive_state.self_knowledge.confident_domains"  # Phase 3+ で有効
+    emotional_axes: []                         # 感情は保存判断に含めない（Lynxの判断基準）
+    notes: "Phase 1 では evaluate_importance Skill が代替。このプロファイルは Phase 2 から使用"
+
+  # ⑤ 感情 delta 算出（update_emotional_state Skill の affect_mapping）
+  affect_mapping:
+    description: "コンテンツ受信時の感情変化を LLM で推定するためのキャラクター定義を提供"
+    fields:
+      - "core_identity.big_five"
+      - "core_identity.personality_prose"
+    emotional_axes: "all_active"               # active_axes の現在値を全て含む
+    notes: >
+      LLM への出力形式は active_axes に含まれる軸の delta のみ要求。
+      バッチ処理（D19）: 複数コンテンツをまとめて 1 回の LLM 呼び出しで処理。
+      使用モデル: Qwen3.5-4B（軽量タスク）
