@@ -21,6 +21,12 @@ feeds:
   - url: "https://zenn.dev/feed"
     category: tech
     language: ja
+  - url: "https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtcGhHZ0pLVUNnQVAB?hl=ja&gl=JP&ceid=JP%3Aja"
+    category: news
+    language: ja
+  - url: "https://news.yahoo.co.jp/rss/topics/top-picks.xml"
+    category: news
+    language: ja
 
 extraction:
   method: rss_parse

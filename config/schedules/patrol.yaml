@@ -18,11 +18,11 @@ patrol:
 
   - source: google_news
     interval_min: 120         # 2時間ごと
-    enabled: true
+    enabled: false            # ブラウザ取得不可（JS難読化）。google_news RSS は rss_feeds で取得済み
 
   - source: newspicks
     interval_min: 180         # 3時間ごと
-    enabled: true
+    enabled: false            # ログイン必須のため無効化。Phase 2 以降で Cookie 認証実装時に再有効化
 
   - source: github_trending
     interval_min: 360         # 6時間ごと

@@ -11,9 +11,8 @@ build/
 .env.*
 !.env.example
 
-# ブラウザセッション（機密情報）
-data/browser-profile/*/state.json
-data/browser-profile/poc/state.json
+# ブラウザセッション（機密情報・Chromiumプロファイル全体）
+data/browser-profile/
 
 # データ出力（大容量・再生成可能）
 data/qdrant/

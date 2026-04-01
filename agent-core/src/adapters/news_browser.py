@@ -97,6 +97,13 @@ class NewsBrowserAdapter(BaseAdapter):
 
                 await page.goto(base_url, wait_until=wait_for, timeout=30000)
 
+                # JS レンダリング待機: article_container が DOM に現れるまで最大 8 秒待つ
+                # SPA (Yahoo News, Google News 等) は domcontentloaded 後も JS が必要
+                try:
+                    await page.wait_for_selector(article_sel, timeout=8000)
+                except Exception:
+                    logger.debug("%s: wait_for_selector タイムアウト (%s)", self._source_id, article_sel)
+
                 articles: list[ElementHandle] = await page.query_selector_all(article_sel)
                 logger.debug(
                     "%s: %d article 要素取得",

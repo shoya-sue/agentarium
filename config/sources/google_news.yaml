@@ -3,7 +3,8 @@ name: google_news
 type: browser
 url: "https://news.google.com/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtcGhHZ0pLVUNnQVAB?hl=ja&gl=JP&ceid=JP:ja"
 stealth_required: false
-always_active: true
+always_active: false
+enabled: false  # ブラウザ取得はJS難読化で不可。google_news RSS は rss_feeds.yaml で取得済み
 
 extraction:
   method: dom_parse

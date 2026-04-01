@@ -8,12 +8,12 @@ always_active: true
 extraction:
   method: dom_parse
   selectors:
-    article_container: ".newsFeed_item"
-    title: ".newsFeed_item_title"
+    # 2026-04 時点のDOM構造: .newsFeed_list > li が記事コンテナ
+    article_container: ".newsFeed_list > li"
+    title: "a[href]"
     url: "a[href]"
-    summary: ".newsFeed_item_sub"
-    category: ".newsFeed_item_media"
-  wait_for: "domcontentloaded"
+    summary: ""  # タイトルに内包されるため省略
+  wait_for: "networkidle"  # domcontentloaded ではJS未完了のため networkidle に変更
 
 rate_limit:
   max_per_hour: 2

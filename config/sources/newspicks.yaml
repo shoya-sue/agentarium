@@ -3,7 +3,8 @@ name: newspicks
 type: browser
 url: "https://newspicks.com"
 stealth_required: false
-always_active: true
+always_active: false
+enabled: false  # ログイン必須のため一時無効化。Phase 2 以降で Cookie 認証実装時に再有効化
 
 extraction:
   method: dom_parse
