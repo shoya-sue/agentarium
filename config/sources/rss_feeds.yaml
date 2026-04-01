@@ -6,27 +6,56 @@ stealth_required: false
 always_active: true
 
 feeds:
-  - url: "https://feeds.feedburner.com/TechCrunch"
-    category: tech
-    language: en
-  - url: "https://www.theverge.com/rss/index.xml"
-    category: tech
-    language: en
-  - url: "https://hnrss.org/frontpage"
+  # ── 日本語: dev / tech ──────────────────────────────────
+  - url: "https://qiita.com/popular-items/feed.atom"
     category: tech_community
-    language: en
-  - url: "https://gigazine.net/news/rss_2.0/"
-    category: tech
     language: ja
+    # 国内最大 dev コミュニティ。人気順 = コミュニティ審査済み
+
   - url: "https://zenn.dev/feed"
     category: tech
     language: ja
+    # 国内 dev 記事（Qiita と相補的。技術同人書に近い深さ）
+
+  - url: "https://b.hatena.ne.jp/hotentry/it.rss"
+    category: tech_community
+    language: ja
+    # 国内テック情報の集合知フィルター。速報性＋キュレーション品質が両立
+
+  - url: "https://www.publickey1.jp/atom.xml"
+    category: tech
+    language: ja
+    # クラウド/OSS/AI の国内解説記事。1人編集者による徹底キュレーション
+
+  - url: "https://gigazine.net/news/rss_2.0/"
+    category: tech
+    language: ja
+    # 日本語テック/科学の幅広カバー（速報性重視）
+
+  # ── 日本語: ニュース ────────────────────────────────────
   - url: "https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZxYUdjU0FtcGhHZ0pLVUNnQVAB?hl=ja&gl=JP&ceid=JP%3Aja"
     category: news
     language: ja
+
   - url: "https://news.yahoo.co.jp/rss/topics/top-picks.xml"
     category: news
     language: ja
+
+  # ── 英語: dev / tech ──────────────────────────────────
+  - url: "https://lobste.rs/rss"
+    category: tech_community
+    language: en
+    # HN の招待制版。技術深度はHN以上、ノイズはHN以下
+
+  - url: "https://feeds.arstechnica.com/arstechnica/index"
+    category: tech
+    language: en
+    # 長文技術ジャーナリズム。AI/セキュリティの深堀り記事が豊富
+
+  - url: "https://www.theverge.com/rss/index.xml"
+    category: tech
+    language: en
+    # コンシューマーテック速報（Big Tech の動向カバー）
 
 extraction:
   method: rss_parse
