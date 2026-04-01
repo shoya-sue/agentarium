@@ -1,0 +1,62 @@
+name: store_character_state
+version: "1.0.0"
+category: memory
+phase: 3
+description: "L3(emotional)/L4(cognitive)/L5(trust) キャラクター状態を Qdrant character_state コレクションに保存する"
+
+input:
+  type: object
+  required: [character_name, state_type, state]
+  properties:
+    character_name:
+      type: string
+      description: "キャラクター名（例: Zethi）"
+    state_type:
+      type: string
+      enum: [emotional, cognitive, trust]
+      description: "状態種別（L3: emotional / L4: cognitive / L5: trust）"
+    state:
+      type: object
+      description: "保存する状態辞書（各状態値のキー・バリューペア）"
+    dry_run:
+      type: boolean
+      default: false
+      description: "True の場合は保存を行わない"
+
+output:
+  type: object
+  required: [stored, point_id, stored_at, character_name, state_type]
+  properties:
+    stored:
+      type: boolean
+      description: "保存に成功した場合 True"
+    point_id:
+      type: string
+      description: "保存した Qdrant ポイントの UUID"
+    stored_at:
+      type: string
+      format: date-time
+      description: "保存日時（ISO8601 形式）"
+    character_name:
+      type: string
+    state_type:
+      type: string
+    reason:
+      type: string
+      nullable: true
+      description: "エラー・dry_run 時の理由（成功時は null）"
+
+qdrant:
+  collection: "character_state"
+  vector_field: null        # character_state は埋め込みなし（メタデータ検索のみ）
+  payload_fields:
+    - character_name
+    - state_type
+    - state
+    - stored_at
+
+safety:
+  ref: "config/safety.yaml#skill_limits.store_character_state"
+
+trace:
+  log_fields: [character_name, state_type, point_id, stored]

@@ -1,0 +1,62 @@
+name: recall_character_state
+version: "1.0.0"
+category: memory
+phase: 3
+description: "character_state コレクションから指定キャラクターの最新 L3/L4/L5 状態を取得する"
+
+input:
+  type: object
+  required: [character_name, state_type]
+  properties:
+    character_name:
+      type: string
+      description: "キャラクター名（例: Zethi）"
+    state_type:
+      type: string
+      enum: [emotional, cognitive, trust]
+      description: "状態種別（L3: emotional / L4: cognitive / L5: trust）"
+    dry_run:
+      type: boolean
+      default: false
+      description: "True の場合は検索を行わない"
+
+output:
+  type: object
+  required: [found, state, stored_at, character_name, state_type]
+  properties:
+    found:
+      type: boolean
+      description: "対象の状態が見つかった場合 True"
+    state:
+      type: object
+      nullable: true
+      description: "取得した状態辞書（未発見時は null）"
+    stored_at:
+      type: string
+      format: date-time
+      nullable: true
+      description: "状態の保存日時（ISO8601 形式、未発見時は null）"
+    character_name:
+      type: string
+    state_type:
+      type: string
+    reason:
+      type: string
+      nullable: true
+      description: "エラー・dry_run・未発見時の理由（正常発見時は null）"
+
+qdrant:
+  collection: "character_state"
+  vector_field: null        # character_state は埋め込みなし（メタデータ検索のみ）
+  filter_fields:
+    - character_name
+    - state_type
+  sort_by: stored_at
+  sort_order: desc
+  limit: 1
+
+safety:
+  ref: "config/safety.yaml#skill_limits.recall_character_state"
+
+trace:
+  log_fields: [character_name, state_type, found, stored_at]

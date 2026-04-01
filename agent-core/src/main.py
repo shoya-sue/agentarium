@@ -38,6 +38,8 @@ from skills.character.update_character_state import UpdateCharacterStateSkill
 from skills.character.maintain_presence import MaintainPresenceSkill
 from skills.memory.compress_memory import CompressMemorySkill
 from skills.memory.forget_low_value import ForgetLowValueSkill
+from skills.memory.store_character_state import StoreCharacterStateSkill
+from skills.memory.recall_character_state import RecallCharacterStateSkill
 from skills.reasoning.generate_goal import GenerateGoalSkill
 from skills.output.generate_daily_digest import GenerateDailyDigestSkill
 from skills.output.generate_topic_report import GenerateTopicReportSkill
@@ -284,6 +286,8 @@ async def _run_agent_loop(settings: dict) -> None:
     _qdrant_client = _QdrantClient(host=qdrant_host, port=qdrant_port)
     compress_memory = CompressMemorySkill(qdrant_client=_qdrant_client)
     forget_low_value = ForgetLowValueSkill(qdrant_client=_qdrant_client)
+    store_character_state = StoreCharacterStateSkill(qdrant_host=qdrant_host, qdrant_port=qdrant_port)
+    recall_character_state = RecallCharacterStateSkill(qdrant_host=qdrant_host, qdrant_port=qdrant_port)
 
     # 推論スキル（Phase 3）
     generate_goal = GenerateGoalSkill(llm_client=llm, config_dir=CONFIG_DIR)
@@ -334,6 +338,8 @@ async def _run_agent_loop(settings: dict) -> None:
         # 記憶（Phase 3）
         "compress_memory": compress_memory.run,
         "forget_low_value": forget_low_value.run,
+        "store_character_state": store_character_state.run,
+        "recall_character_state": recall_character_state.run,
         # 推論（Phase 3）
         "generate_goal": generate_goal.run,
         # アウトプット（Phase 3）
@@ -349,15 +355,25 @@ async def _run_agent_loop(settings: dict) -> None:
         skill_registry=skill_registry,
     )
 
+    # PresenceMonitor — maintain_presence を定期的に呼び出してプレゼンス状態を管理
+    from scheduler.presence_monitor import PresenceMonitor
+    presence_monitor = PresenceMonitor(
+        maintain_presence_fn=maintain_presence.run,
+        check_interval_seconds=float(agent_cfg.get("presence_check_interval_seconds", 300.0)),
+    )
+
     try:
+        await presence_monitor.start()
         await loop.start()
     except asyncio.CancelledError:
         logger.info("AgentLoop タスクがキャンセルされました")
         await loop.stop()
+        await presence_monitor.stop()
         raise
     except Exception as exc:
         logger.error("AgentLoop でエラー: %s", exc)
         await loop.stop()
+        await presence_monitor.stop()
 
 
 async def main() -> None:
