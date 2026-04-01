@@ -27,6 +27,7 @@ from skills.reasoning.select_skill import SelectSkillSkill
 from skills.reasoning.reflect import ReflectSkill
 from skills.reasoning.plan_task import PlanTaskSkill
 from skills.reasoning.generate_response import GenerateResponseSkill
+from skills.reasoning.build_llm_context import BuildLlmContextSkill
 from skills.action.send_discord import SendDiscordSkill
 from skills.character.build_persona_context import BuildPersonaContextSkill
 from skills.character.update_emotional_state import UpdateEmotionalStateSkill
@@ -237,6 +238,12 @@ async def _run_agent_loop(settings: dict) -> None:
         qdrant_host=qdrant_host,
         qdrant_port=qdrant_port,
     )
+    store_semantic = StoreSemanticSkill(
+        qdrant_host=qdrant_host,
+        qdrant_port=qdrant_port,
+        embed_url=embed_url,
+        llm_client=llm,
+    )
     recall_related = RecallRelatedSkill(
         qdrant_host=qdrant_host,
         qdrant_port=qdrant_port,
@@ -249,20 +256,43 @@ async def _run_agent_loop(settings: dict) -> None:
     reflect = ReflectSkill(llm_client=llm, config_dir=CONFIG_DIR)
     plan_task = PlanTaskSkill(llm_client=llm, config_dir=CONFIG_DIR)
     generate_response = GenerateResponseSkill(llm_client=llm, config_dir=CONFIG_DIR)
+    build_llm_context = BuildLlmContextSkill(config_dir=CONFIG_DIR)
 
     # アクションスキル
     send_discord = SendDiscordSkill(config_dir=CONFIG_DIR)
 
+    # browse_source ラッパー（AgentLoop から各フィードを個別スキルとして選択可能にする）
+    browse_source_skill = BrowseSourceSkill(config_dir=CONFIG_DIR)
+
+    async def _fetch_hacker_news(params: dict) -> list:
+        return await browse_source_skill.run({"source_id": "hacker_news", "max_items": params.get("max_items", 20)})
+
+    async def _fetch_rss(params: dict) -> list:
+        return await browse_source_skill.run({"source_id": "rss_feeds", "max_items": params.get("max_items", 20)})
+
+    async def _fetch_github_trending(params: dict) -> list:
+        return await browse_source_skill.run({"source_id": "github_trending", "max_items": params.get("max_items", 20)})
+
     skill_registry = {
-        "build_persona_context": build_persona_context.run,
-        "update_emotional_state": update_emotional_state.run,
+        # 情報取得
+        "fetch_hacker_news": _fetch_hacker_news,
+        "fetch_rss": _fetch_rss,
+        "fetch_github_trending": _fetch_github_trending,
+        # 記憶
         "store_episodic": store_episodic.run,
+        "store_semantic": store_semantic.run,
         "recall_related": recall_related.run,
         "evaluate_importance": evaluate_importance.run,
+        # 推論
         "select_skill": select_skill.run,
         "reflect": reflect.run,
         "plan_task": plan_task.run,
         "generate_response": generate_response.run,
+        "build_llm_context": build_llm_context.run,
+        # キャラクター
+        "build_persona_context": build_persona_context.run,
+        "update_emotional_state": update_emotional_state.run,
+        # アクション
         "send_discord": send_discord.run,
     }
 
