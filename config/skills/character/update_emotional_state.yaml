@@ -1,0 +1,74 @@
+name: update_emotional_state
+version: "1.0.0"
+category: character
+phase: 2
+description: >
+  filter_relevance を通過したコンテンツバッチを Qwen3.5-4B に渡し、
+  キャラクターの感情軸スコアを更新して data/state/ に永続化する（D18/D19）。
+
+input:
+  type: object
+  required: [character_name, contents]
+  properties:
+    character_name:
+      type: string
+      description: "キャラクター名 'zephyr' | 'lynx'"
+      enum: [zephyr, lynx]
+    contents:
+      type: array
+      description: "感情マッピング対象のコンテンツリスト"
+      items:
+        type: object
+        required: [index, summary]
+        properties:
+          index:
+            type: integer
+            description: "コンテンツのインデックス（0 始まり）"
+          summary:
+            type: string
+            description: "コンテンツの要約"
+          topics:
+            type: array
+            items:
+              type: string
+            description: "コンテンツのトピックタグ"
+    model:
+      type: string
+      description: "使用する LLM モデル名（省略時は routing.yaml の affect_mapping モデル）"
+      nullable: true
+    state_dir:
+      type: string
+      description: "感情状態 JSON を格納するディレクトリパス（省略時は data/state/）"
+      nullable: true
+
+output:
+  type: object
+  required: [character_name, updated_state, deltas_applied, axes_updated]
+  properties:
+    character_name:
+      type: string
+      description: "キャラクター名"
+    updated_state:
+      type: object
+      description: "更新後の感情状態（軸名 → スコア 0.0〜1.0）"
+      additionalProperties:
+        type: number
+    deltas_applied:
+      type: integer
+      description: "delta が適用されたコンテンツ件数"
+    axes_updated:
+      type: array
+      items:
+        type: string
+      description: "今回更新された感情軸名のリスト"
+
+config:
+  characters_dir: "config/characters"
+  state_dir: "data/state"
+  affect_model: "qwen3.5:4b"  # D19: バッチ感情マッピングは 4B モデル
+
+safety:
+  ref: "config/safety.yaml#skill_limits.default"
+
+trace:
+  log_fields: [character_name, deltas_applied, axes_updated]

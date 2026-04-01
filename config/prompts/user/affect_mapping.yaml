@@ -1,0 +1,59 @@
+# affect_mapping user message テンプレート（D19）
+# バッチ処理: 複数コンテンツを一括でキャラクターの感情軸スコア変化に変換する
+template_name: affect_mapping_user
+version: "1.0.0"
+
+content: |
+  あなたは感情マッピングの専門システムです。
+  以下のキャラクター情報とコンテンツリストを分析し、
+  各コンテンツがキャラクターの感情軸に与える影響（delta）を JSON 配列で返してください。
+
+  ## キャラクター情報
+
+  名前: {character}
+
+  性格:
+  {personality_prose}
+
+  Big Five:
+  {big_five}
+
+  ## 評価する感情軸
+
+  {active_axes}
+
+  ## 現在の感情状態
+
+  {current_state}
+
+  ## コンテンツリスト
+
+  {contents}
+
+  ---
+
+  ## 出力形式
+
+  以下の JSON 配列のみを出力してください（説明文不要）。
+  感情変化がない軸は含めないでください。delta は -1.0〜1.0 の範囲で指定してください。
+
+  ```json
+  [
+    {"index": 0, "emotional_delta": {"curiosity": 0.2, "excitement": 0.1}},
+    {"index": 1, "emotional_delta": {"boredom": 0.3}}
+  ]
+  ```
+
+variables:
+  - name: character
+    source: input.character
+  - name: personality_prose
+    source: input.personality_prose
+  - name: big_five
+    source: input.big_five
+  - name: active_axes
+    source: input.active_axes
+  - name: current_state
+    source: input.current_state
+  - name: contents
+    source: input.contents

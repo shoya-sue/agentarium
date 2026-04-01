@@ -1,8 +1,10 @@
 name: build_persona_context
-version: "1.0.0"
+version: "2.0.0"
 category: character
 phase: 2
-description: "キャラクター YAML を読み込み、LLM に渡すペルソナコンテキストを組み立てる。LLM は呼び出さない。"
+description: >
+  キャラクター YAML を読み込み、LLM に渡すペルソナコンテキストを組み立てる。
+  LLM は呼び出さない。D20: profile パラメータで context_profiles.yaml のプロファイルを選択できる。
 
 input:
   type: object
@@ -12,36 +14,76 @@ input:
       type: string
       description: "キャラクター名 'zephyr' | 'lynx'"
       enum: [zephyr, lynx]
+    profile:
+      type: string
+      description: >
+        コンテキストプロファイル名（D20）。
+        指定すると context_profiles.yaml に基づいたフィールド選択を行う。
+        null の場合は後方互換の固定形式で出力する。
+      enum: [filter_relevance, generate_response, reflect, store_semantic, affect_mapping]
+      nullable: true
     platform:
       type: string
       description: "出力先プラットフォーム 'discord' | 'x' | null"
       enum: [discord, x]
       nullable: true
+    emotional_state:
+      type: object
+      description: >
+        現在の感情状態（data/state/emotional_state_{character}.json から読み込み済みの値）。
+        profile が emotional_axes を持つ場合に使用する。
+        キー: 感情軸名、値: 0.0〜1.0 のスコア。
+      additionalProperties:
+        type: number
+      nullable: true
     dialogue_partner_context:
       type: object
-      description: "対話相手の直前発言サマリ（任意）"
+      description: "対話相手の直前発言サマリ（任意・将来拡張用）"
       nullable: true
 
 output:
-  type: object
-  required: [persona_prompt, style_instructions, motivation_context, character_name, token_count]
-  properties:
-    persona_prompt:
-      type: string
-      description: "system prompt に挿入するペルソナ記述（名前・一人称・性格・役割）"
-    style_instructions:
-      type: string
-      description: "文体・語尾・絵文字使用等のスタイル指示"
-    motivation_context:
-      type: string
-      description: "L2 Motivation のコンテキスト（未定義なら null）"
-      nullable: true
-    character_name:
-      type: string
-      description: "キャラクター名"
-    token_count:
-      type: integer
-      description: "推定トークン数（文字数 / 4）"
+  # profile 指定時と profile=null 時で異なるフィールドを返す
+  oneOf:
+    - description: "profile 指定時"
+      type: object
+      required: [persona_context, character_name, profile, token_count]
+      properties:
+        persona_context:
+          type: string
+          description: "プロファイルに応じたペルソナコンテキスト（system prompt に挿入する）"
+        style_instructions:
+          type: string
+          description: "スタイル指示（generate_response プロファイル時のみ返す）"
+          nullable: true
+        character_name:
+          type: string
+          description: "キャラクター名"
+        profile:
+          type: string
+          description: "使用したプロファイル名"
+        token_count:
+          type: integer
+          description: "推定トークン数（文字数 / 4）"
+    - description: "profile=null 時（後方互換）"
+      type: object
+      required: [persona_prompt, style_instructions, motivation_context, character_name, token_count]
+      properties:
+        persona_prompt:
+          type: string
+          description: "system prompt に挿入するペルソナ記述（名前・一人称・性格・役割）"
+        style_instructions:
+          type: string
+          description: "文体・語尾・絵文字使用等のスタイル指示"
+        motivation_context:
+          type: string
+          description: "L2 Motivation のコンテキスト（未定義なら null）"
+          nullable: true
+        character_name:
+          type: string
+          description: "キャラクター名"
+        token_count:
+          type: integer
+          description: "推定トークン数（文字数 / 4）"
 
 config:
   characters_dir: "config/characters"  # プロジェクトルートからの相対パス
@@ -50,4 +92,4 @@ safety:
   ref: "config/safety.yaml#skill_limits.default"
 
 trace:
-  log_fields: [character_name, platform, token_count]
+  log_fields: [character_name, profile, platform, token_count]
