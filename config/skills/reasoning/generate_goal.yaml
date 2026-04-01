@@ -1,0 +1,66 @@
+name: generate_goal
+version: "1.0.0"
+category: reasoning
+phase: 3
+description: "現在の状態・キャラクター設定・最近の記憶から次に達成すべき目標を LLM で自律生成する"
+
+input:
+  type: object
+  required: [current_state]
+  properties:
+    current_state:
+      type: object
+      description: "WorkingMemory.to_summary_dict() の出力"
+    persona_context:
+      type: object
+      description: "build_persona_context の出力（省略可）"
+    recent_memories:
+      type: array
+      description: "最近の記憶リスト（省略可）"
+      items:
+        type: object
+    model:
+      type: string
+      description: "使用モデル（省略時: qwen3.5:35b-a3b）"
+
+output:
+  type: object
+  required: [goal, goal_type, priority, reasoning]
+  properties:
+    goal:
+      type: string
+      description: "生成された目標テキスト"
+    goal_type:
+      type: string
+      enum:
+        - information_collection
+        - reflection
+        - discord_response
+        - memory_maintenance
+        - idle
+      description: "目標の種類"
+    priority:
+      type: number
+      minimum: 0.0
+      maximum: 1.0
+      description: "優先度 0.0〜1.0"
+    reasoning:
+      type: string
+      description: "この目標を選んだ理由"
+
+llm:
+  backend: "ollama"
+  routing_ref: "config/llm/routing.yaml#routing_rules.explicit.generate_goal"
+  default_model: "qwen3.5:35b-a3b"
+  think: false
+
+safety:
+  ref: "config/safety.yaml#skill_limits.llm_call"
+
+trace:
+  log_fields: [goal_type, priority, duration_ms, error]
+
+error_handling:
+  parse_failure: "フォールバック目標を返す（goal_type=information_collection, priority=0.0）"
+  llm_error: "フォールバック目標を返す"
+  invalid_goal_type: "information_collection にフォールバック"
