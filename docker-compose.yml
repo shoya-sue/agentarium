@@ -142,7 +142,7 @@ services:
     image: ghcr.io/aivis-project/aivisspeech-engine:cpu-latest
     container_name: agentarium-voicevox
     ports:
-      - "50021:50021"
+      - "50021:10101"   # AivisSpeech 内部ポートは 10101（VOICEVOX の 50021 とは異なる）
     restart: unless-stopped
 
   # 監視ダッシュボード（Phase 4a）

@@ -1,15 +1,23 @@
 """
 skills/character/synthesize_speech.py — TTS 音声合成 Skill
 
-L3 感情状態（valence/arousal/dominance）を VOICEVOX 音声パラメータに変換し、
-VOICEVOX REST API で音声（WAV）を生成する。
+L3 感情状態（valence/arousal/dominance）を VOICEVOX 互換 API の音声パラメータに変換し、
+AivisSpeech Engine（VOICEVOX 互換 REST API）で音声（WAV）を生成する。
 
-VOICEVOX REST API:
+API エンドポイント（VOICEVOX 互換）:
   POST /audio_query?text={text}&speaker={speaker_id}
   POST /synthesis?speaker={speaker_id}
   → application/x-wav
 
-D14 決定: Style-Bert-VITS2（主）+ VOICEVOX（検証/フォールバック）
+AivisSpeech スピーカー（デフォルトモデル: まお）:
+  888753760: ノーマル
+  888753761: ふつー
+  888753762: あまあま
+  888753763: おちつき
+  888753764: からかい
+  888753765: せつなめ
+
+D14 決定: Style-Bert-VITS2（主）+ AivisSpeech（検証/フォールバック）
 
 Skill 入出力スキーマ: config/skills/character/synthesize_speech.yaml
 """
@@ -27,18 +35,18 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# デフォルト VOICEVOX スピーカー ID
-# 参考: https://voicevox.hiroshiba.jp/
-_DEFAULT_SPEAKER_ID = 3  # ずんだもん（ノーマル）
+# デフォルトスピーカー ID（AivisSpeech: まお/ノーマル）
+_DEFAULT_SPEAKER_ID = 888753760
 
 # 感情→スピーカーIDマッピング（valence/arousal の組み合わせ）
 # valence: ポジティブ/ネガティブ (-1.0〜1.0)
 # arousal: 高覚醒/低覚醒 (-1.0〜1.0)
+# AivisSpeech スピーカー: まお のスタイルを感情軸にマッピング
 _EMOTION_SPEAKER_MAP: list[dict[str, Any]] = [
-    {"valence_min": 0.3, "arousal_min": 0.3, "speaker_id": 3, "label": "happy_excited"},   # 喜び・興奮
-    {"valence_min": 0.3, "arousal_max": -0.3, "speaker_id": 2, "label": "calm_happy"},      # 穏やか・嬉しい
-    {"valence_max": -0.3, "arousal_min": 0.3, "speaker_id": 6, "label": "angry_upset"},      # 怒り・不安
-    {"valence_max": -0.3, "arousal_max": -0.3, "speaker_id": 0, "label": "sad_tired"},       # 悲しみ・疲れ
+    {"valence_min": 0.3, "arousal_min": 0.3, "speaker_id": 888753762, "label": "happy_excited"},   # あまあま: 喜び・興奮
+    {"valence_min": 0.3, "arousal_max": -0.3, "speaker_id": 888753763, "label": "calm_happy"},      # おちつき: 穏やか・嬉しい
+    {"valence_max": -0.3, "arousal_min": 0.3, "speaker_id": 888753764, "label": "angry_upset"},     # からかい: 怒り・不安
+    {"valence_max": -0.3, "arousal_max": -0.3, "speaker_id": 888753765, "label": "sad_tired"},      # せつなめ: 悲しみ・疲れ
 ]
 
 # pitch/speed の調整幅（arousal/valence に比例）

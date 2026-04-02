@@ -29,7 +29,7 @@ class TestSynthesizeSpeechSkill:
 
         skill = SynthesizeSpeechSkill.__new__(SynthesizeSpeechSkill)
         speaker = skill._map_emotion_to_speaker(valence=0.8, arousal=0.7)
-        assert speaker == 3  # ずんだもん（ノーマル）
+        assert speaker == 888753762  # まお/あまあま
 
     def test_map_emotion_sad_tired(self):
         """低valence + 低arousal → sad_tired スピーカー"""
@@ -37,7 +37,7 @@ class TestSynthesizeSpeechSkill:
 
         skill = SynthesizeSpeechSkill.__new__(SynthesizeSpeechSkill)
         speaker = skill._map_emotion_to_speaker(valence=-0.8, arousal=-0.7)
-        assert speaker == 0
+        assert speaker == 888753765  # まお/せつなめ
 
     def test_map_emotion_angry_upset(self):
         """低valence + 高arousal → angry_upset スピーカー"""
@@ -45,7 +45,7 @@ class TestSynthesizeSpeechSkill:
 
         skill = SynthesizeSpeechSkill.__new__(SynthesizeSpeechSkill)
         speaker = skill._map_emotion_to_speaker(valence=-0.8, arousal=0.7)
-        assert speaker == 6
+        assert speaker == 888753764  # まお/からかい
 
     def test_calc_voice_params_high_arousal(self):
         """高arousal → speed が速くなる"""
@@ -168,7 +168,7 @@ class TestSynthesizeSpeechSkill:
         })
 
         assert result["voicevox_available"] is True
-        assert result["speaker_id"] == 3  # happy_excited
+        assert result["speaker_id"] == 888753762  # happy_excited (まお/あまあま)
         assert result["speed"] > 1.0  # 高arousal → 速い
         assert Path(result["file_path"]).exists()
 
