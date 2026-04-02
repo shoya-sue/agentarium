@@ -116,15 +116,25 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  # 監視ダッシュボード（Phase 1 以降）
-  # dashboard:
-  #   build: ./dashboard
-  #   container_name: agentarium-dashboard
-  #   ports:
-  #     - "3000:3000"
-  #   depends_on:
-  #     - qdrant
-  #   restart: unless-stopped
+  # 監視ダッシュボード（Phase 4a）
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: agentarium-dashboard
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data:ro
+      - ./config:/app/config:ro
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - DATA_DIR=/app/data
+      - CONFIG_DIR=/app/config
+      - PORT=8080
+    depends_on:
+      - qdrant
+    restart: unless-stopped
 
 volumes:
   qdrant_data:
