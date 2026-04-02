@@ -52,10 +52,11 @@ core_identity:
       Lynx の批判的な問いに対して追加情報を探しに行くか、認める。
       対話を通じて最終的な「共有する価値のある知識」を絞り込む。
 
-  # 性格ドリフト設定（Phase 4 で有効化）
+  # 性格ドリフト設定（Phase 4a で有効化）
   drift:
-    enabled: false  # Phase 4 まで無効
+    enabled: true
     max_drift_per_month: 0.05
+    max_cumulative_drift: 0.20
     influenced_by:
       - repeated_success
       - novel_discoveries

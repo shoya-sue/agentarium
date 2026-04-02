@@ -20,6 +20,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime, time, timezone
@@ -107,10 +108,12 @@ class PatrolScheduler:
         self,
         config_dir: Path | str,
         handler: PatrolHandler | None = None,
+        data_dir: Path | str | None = None,
     ) -> None:
         self._config_dir = Path(config_dir)
         self._schedule_yaml = self._config_dir / "schedules" / "patrol.yaml"
         self._handler: PatrolHandler = handler or _default_handler
+        self._data_dir: Path | None = Path(data_dir) if data_dir else None
 
         # 実行状態マップ: source_id → SourceState（不変更新パターン）
         self._states: dict[str, SourceState] = {}
@@ -151,6 +154,41 @@ class PatrolScheduler:
     def get_states(self) -> dict[str, SourceState]:
         """現在のソース状態のコピーを返す（読み取り専用）。"""
         return dict(self._states)
+
+    def _write_states(self) -> None:
+        """
+        現在のソース状態を data/scheduler/states.json に書き出す。
+
+        data_dir が未設定の場合はスキップする（テスト時など）。
+        """
+        if self._data_dir is None:
+            return
+
+        states_dir = self._data_dir / "scheduler"
+        states_dir.mkdir(parents=True, exist_ok=True)
+        states_file = states_dir / "states.json"
+
+        payload = {
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "sources": [
+                {
+                    "source_id": s.source_id,
+                    "enabled": s.enabled,
+                    "interval_min": s.interval_min,
+                    "last_run_at": s.last_run_at.isoformat() if s.last_run_at else None,
+                    "consecutive_failures": s.consecutive_failures,
+                }
+                for s in self._states.values()
+            ],
+        }
+
+        try:
+            states_file.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            logger.warning("states.json 書き出し失敗: %s", exc)
 
     # ------------------------------------------------------------------
     # 設定読み込み
@@ -267,6 +305,7 @@ class PatrolScheduler:
                     source_id,
                     len(items) if items else 0,
                 )
+                self._write_states()
                 return
 
             except Exception as exc:
@@ -279,6 +318,7 @@ class PatrolScheduler:
                     max_retries + 1,
                 )
                 self._states[source_id] = self._states[source_id].with_failure()
+                self._write_states()
 
                 if not retry_on_failure or attempt > max_retries:
                     logger.error(

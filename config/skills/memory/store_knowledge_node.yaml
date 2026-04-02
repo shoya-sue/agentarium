@@ -1,0 +1,51 @@
+name: store_knowledge_node
+version: "1.0.0"
+category: memory
+phase: 4
+description: "GraphRAG: Neo4j 知識グラフにエンティティノードを保存する（MERGE upsert）"
+
+input:
+  type: object
+  required: [entity_id, entity_type, name]
+  properties:
+    entity_id:
+      type: string
+      description: "一意識別子（例: concept:transformer）"
+    entity_type:
+      type: string
+      description: "ノード種別（concept / person / event / technology / place）"
+    name:
+      type: string
+      description: "表示名"
+    description:
+      type: string
+    source_url:
+      type: string
+    topics:
+      type: array
+      items:
+        type: string
+    importance_score:
+      type: number
+      minimum: 0.0
+      maximum: 1.0
+
+output:
+  type: object
+  required: [entity_id, stored_at, created]
+  properties:
+    entity_id:
+      type: string
+    stored_at:
+      type: string
+      format: date-time
+    created:
+      type: boolean
+      description: "True: 新規作成, False: 更新"
+
+neo4j:
+  label: "Knowledge"
+  merge_key: "entity_id"
+
+trace:
+  log_fields: [entity_id, entity_type, created, duration_ms]
