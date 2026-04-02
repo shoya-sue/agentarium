@@ -135,9 +135,11 @@ services:
       - ./data/neo4j:/data
     restart: unless-stopped
 
-  # VOICEVOX 音声合成エンジン（Phase 4: TTS）
+  # AivisSpeech 音声合成エンジン（Phase 4: TTS）
+  # VOICEVOX 互換 API / Style-Bert-VITS2 ベースで高品質な日本語音声合成
+  # Phase 5 で Style-Bert-VITS2 ネイティブ統合予定（D14）
   voicevox:
-    image: voicevox/voicevox_engine:cpu-ubuntu20.04-latest
+    image: ghcr.io/aivis-project/aivisspeech-engine:cpu-latest
     container_name: agentarium-voicevox
     ports:
       - "50021:50021"
