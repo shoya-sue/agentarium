@@ -266,3 +266,102 @@ class TestPatrolSchedulerRun:
 
         # 1回目 + リトライ1回 = 2回
         assert call_count[0] == 2
+
+
+class TestWriteStates:
+    """PatrolScheduler._write_states を検証"""
+
+    def test_write_states_creates_json_file(
+        self, tmp_path: Path, patrol_config_dir: Path
+    ):
+        """_write_states が states.json を正しく生成する"""
+        import json
+        from scheduler.patrol_scheduler import PatrolScheduler
+
+        data_dir = tmp_path / "data"
+        scheduler = PatrolScheduler(
+            config_dir=patrol_config_dir,
+            data_dir=data_dir,
+        )
+        scheduler._load_config()
+        scheduler._write_states()
+
+        states_file = data_dir / "scheduler" / "states.json"
+        assert states_file.exists()
+
+        payload = json.loads(states_file.read_text(encoding="utf-8"))
+        assert "updated_at" in payload
+        assert "sources" in payload
+        assert isinstance(payload["sources"], list)
+        assert len(payload["sources"]) == 3  # source_a, source_b, source_disabled
+
+    def test_write_states_contains_correct_fields(
+        self, tmp_path: Path, patrol_config_dir: Path
+    ):
+        """生成された JSON の各ソースに必要なフィールドが含まれる"""
+        import json
+        from scheduler.patrol_scheduler import PatrolScheduler
+
+        data_dir = tmp_path / "data"
+        scheduler = PatrolScheduler(
+            config_dir=patrol_config_dir,
+            data_dir=data_dir,
+        )
+        scheduler._load_config()
+        scheduler._write_states()
+
+        payload = json.loads(
+            (data_dir / "scheduler" / "states.json").read_text(encoding="utf-8")
+        )
+        source_ids = {s["source_id"] for s in payload["sources"]}
+        assert "source_a" in source_ids
+        assert "source_disabled" in source_ids
+
+        for s in payload["sources"]:
+            assert "source_id" in s
+            assert "enabled" in s
+            assert "interval_min" in s
+            assert "last_run_at" in s
+            assert "consecutive_failures" in s
+
+    def test_write_states_no_data_dir_skips_silently(
+        self, patrol_config_dir: Path
+    ):
+        """data_dir が未設定の場合、_write_states は何もしない"""
+        from scheduler.patrol_scheduler import PatrolScheduler
+
+        scheduler = PatrolScheduler(config_dir=patrol_config_dir)  # data_dir=None
+        scheduler._load_config()
+        # 例外が発生しないことを確認
+        scheduler._write_states()
+
+    @pytest.mark.asyncio
+    async def test_write_states_called_after_run_source(
+        self, tmp_path: Path, patrol_config_dir: Path
+    ):
+        """_run_source 後に states.json が更新される"""
+        import json
+        from scheduler.patrol_scheduler import PatrolScheduler, SourceState
+
+        data_dir = tmp_path / "data"
+
+        async def mock_handler(source_id: str):
+            return [{"title": "item"}]
+
+        scheduler = PatrolScheduler(
+            config_dir=patrol_config_dir,
+            handler=mock_handler,
+            data_dir=data_dir,
+        )
+        scheduler._load_config()
+
+        state = SourceState(source_id="source_a", interval_min=60, enabled=True)
+        await scheduler._run_source(state)
+
+        states_file = data_dir / "scheduler" / "states.json"
+        assert states_file.exists()
+
+        payload = json.loads(states_file.read_text(encoding="utf-8"))
+        source_a = next(s for s in payload["sources"] if s["source_id"] == "source_a")
+        assert source_a["last_run_at"] is not None
+        assert source_a["consecutive_failures"] == 0

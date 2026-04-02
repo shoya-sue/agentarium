@@ -21,6 +21,8 @@ dependencies = [
     "pyyaml>=6.0.2",
     # Playwright (rebrowser)
     "rebrowser-playwright>=1.48.0",
+    # Neo4j (GraphRAG)
+    "neo4j>=5.0",
 ]
 
 [project.optional-dependencies]

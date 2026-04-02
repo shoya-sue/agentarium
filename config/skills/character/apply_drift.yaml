@@ -1,0 +1,106 @@
+name: apply_drift
+version: "1.0.0"
+category: character
+phase: 4
+description: "Big Five パーソナリティドリフトを体験イベントにもとづいて計算・適用する（Phase 4a）"
+
+input:
+  type: object
+  required: [character, current_big_five, baseline_big_five]
+  properties:
+    character:
+      type: string
+      description: "キャラクター名（zephyr / lynx）"
+    current_big_five:
+      type: object
+      description: "現在の Big Five 値（0.0〜1.0）"
+      properties:
+        openness:        { type: number, minimum: 0.0, maximum: 1.0 }
+        conscientiousness: { type: number, minimum: 0.0, maximum: 1.0 }
+        extraversion:    { type: number, minimum: 0.0, maximum: 1.0 }
+        agreeableness:   { type: number, minimum: 0.0, maximum: 1.0 }
+        neuroticism:     { type: number, minimum: 0.0, maximum: 1.0 }
+    baseline_big_five:
+      type: object
+      description: "初期（ベースライン）Big Five 値。累積ドリフト上限の基準点"
+      properties:
+        openness:        { type: number, minimum: 0.0, maximum: 1.0 }
+        conscientiousness: { type: number, minimum: 0.0, maximum: 1.0 }
+        extraversion:    { type: number, minimum: 0.0, maximum: 1.0 }
+        agreeableness:   { type: number, minimum: 0.0, maximum: 1.0 }
+        neuroticism:     { type: number, minimum: 0.0, maximum: 1.0 }
+    events:
+      type: array
+      description: "体験イベントリスト"
+      items:
+        type: object
+        required: [type]
+        properties:
+          type:
+            type: string
+            enum:
+              # Zephyr 向け
+              - repeated_success
+              - novel_discoveries
+              - social_interactions
+              - negative_experiences
+              # Lynx 向け
+              - validated_predictions
+              - disproved_hypotheses
+              - high_stakes_errors
+          intensity:
+            type: number
+            minimum: 0.0
+            maximum: 1.0
+            default: 1.0
+            description: "イベントの強度スケーリング係数"
+    elapsed_days:
+      type: number
+      description: "最後のドリフト計算からの経過日数（月あたりレート制限の計算に使用）"
+      minimum: 0.0
+      default: 1.0
+    max_drift_per_month:
+      type: number
+      description: "月あたりの最大変化量（省略時: キャラクターYAMLの値を使用）"
+      minimum: 0.0
+      maximum: 1.0
+      default: 0.05
+    max_cumulative_drift:
+      type: number
+      description: "ベースラインからの最大累積ズレ（省略時: 0.20）"
+      minimum: 0.0
+      maximum: 1.0
+      default: 0.20
+
+output:
+  type: object
+  required: [character, updated_big_five, drift_applied, updated_at]
+  properties:
+    character:
+      type: string
+    updated_big_five:
+      type: object
+      description: "更新後の Big Five 値"
+      properties:
+        openness:        { type: number }
+        conscientiousness: { type: number }
+        extraversion:    { type: number }
+        agreeableness:   { type: number }
+        neuroticism:     { type: number }
+    drift_applied:
+      type: object
+      description: "今回適用したドリフト量（各特性の delta）"
+    updated_at:
+      type: string
+      description: "ISO 8601 タイムスタンプ"
+
+drift:
+  max_drift_per_month: 0.05
+  max_cumulative_drift: 0.20
+  days_per_month: 30
+
+trace:
+  log_fields: [character, events_count, elapsed_days, drift_applied, duration_ms, error]
+
+error_handling:
+  unknown_event_type: "警告をログに記録して無視"

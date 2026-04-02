@@ -1,0 +1,50 @@
+name: query_knowledge_graph
+version: "1.0.0"
+category: memory
+phase: 4
+description: "GraphRAG: Neo4j 知識グラフからエンティティと関連を検索する"
+
+input:
+  type: object
+  properties:
+    entity_id:
+      type: string
+      description: "直接取得するノードの entity_id"
+    query:
+      type: string
+      description: "name/description のテキスト検索クエリ"
+    topics:
+      type: array
+      items:
+        type: string
+      description: "トピックフィルタ"
+    entity_type:
+      type: string
+      description: "ノード種別フィルタ"
+    max_hops:
+      type: integer
+      minimum: 1
+      maximum: 3
+      default: 2
+      description: "近傍ホップ数"
+    limit:
+      type: integer
+      minimum: 1
+      maximum: 50
+      default: 10
+
+output:
+  type: object
+  required: [nodes, relations, total]
+  properties:
+    nodes:
+      type: array
+      description: "マッチしたノードのリスト"
+    relations:
+      type: array
+      description: "ノード間リレーションのリスト"
+    total:
+      type: integer
+
+trace:
+  log_fields: [entity_id, query, total, duration_ms]

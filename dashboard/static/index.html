@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agentarium Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<!-- ─── ヘッダー ─────────────────────────────────────────── -->
+<header id="header">
+  <h1>Agentarium <span>Dashboard</span></h1>
+
+  <div id="live-indicator">
+    <div id="live-dot"></div>
+    <span id="live-label">OFFLINE</span>
+  </div>
+
+  <div class="header-stats">
+    <div class="stat-badge">
+      <span>Skills</span>
+      <span id="stat-total" class="value">0</span>
+    </div>
+    <div class="stat-badge errors">
+      <span>Errors</span>
+      <span id="stat-errors" class="value">0</span>
+    </div>
+    <div class="stat-badge">
+      <span>Qdrant</span>
+      <span id="stat-qdrant" class="value">—</span>
+    </div>
+  </div>
+</header>
+
+<!-- ─── メインレイアウト ────────────────────────────────────── -->
+<main id="main">
+
+  <!-- 左パネル: スケジューラ + Qdrant -->
+  <div id="panel-left">
+    <div id="panel-scheduler" class="panel">
+      <div class="panel-header">
+        Scheduler
+        <span class="count" id="scheduler-count">—</span>
+      </div>
+      <div class="panel-body" id="scheduler-body">
+        <div class="empty-state">読み込み中...</div>
+      </div>
+    </div>
+
+    <div id="panel-qdrant" class="panel">
+      <div class="panel-header">Qdrant</div>
+      <div class="panel-body" id="qdrant-body">
+        <div class="empty-state">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 中央パネル: Skill タイムライン -->
+  <div id="panel-timeline" class="panel">
+    <div class="panel-header">
+      Skill Timeline
+      <span class="count" id="timeline-count">0</span>
+    </div>
+    <div class="panel-body" id="timeline-body">
+      <div class="empty-state">スキル実行待ち...</div>
+    </div>
+  </div>
+
+  <!-- 右パネル: LLM I/O ビューア -->
+  <div id="panel-llm" class="panel">
+    <div class="panel-header">LLM I/O</div>
+    <div class="panel-body" id="llm-body">
+      <div class="llm-empty">
+        タイムラインのアイテムを<br>クリックして詳細を表示
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ─── フッター: エラーログ ──────────────────────────────── -->
+<footer id="footer">
+  <span class="footer-empty" id="footer-empty">エラーなし</span>
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
