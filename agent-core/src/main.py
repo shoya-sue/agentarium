@@ -329,7 +329,8 @@ async def _run_agent_loop(settings: dict) -> None:
     # VOICEVOX TTS スキル（Phase 4）
     voicevox_url = os.environ.get("VOICEVOX_URL", "http://localhost:50021")
     synthesize_speech = SynthesizeSpeechSkill(
-        voicevox_url=voicevox_url, data_dir=DATA_DIR
+        voicevox_url=voicevox_url,
+        output_dir=DATA_DIR / "outputs" / "speech",
     )
 
     # browse_source ラッパー（AgentLoop から各フィードを個別スキルとして選択可能にする）
