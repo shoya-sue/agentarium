@@ -100,9 +100,12 @@ services:
       - browser
     environment:
       - QDRANT_URL=http://qdrant:6333
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
       - EMBED_URL=http://embed:8001
       - BROWSER_REMOTE_URL=http://browser:9222
       - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - OLLAMA_BASE_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
       - DISCORD_CHANNEL_GENERAL=${DISCORD_CHANNEL_GENERAL:-}

@@ -22,7 +22,7 @@ from models.llm import LLMClient
 logger = logging.getLogger(__name__)
 
 # デフォルトモデル（振り返りは中型モデルで十分）
-_DEFAULT_MODEL: str = "qwen3.5:14b"
+_DEFAULT_MODEL: str = "llama3.1:latest"
 
 # スコアのクランプ範囲
 _SCORE_MIN: float = 0.0

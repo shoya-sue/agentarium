@@ -89,7 +89,8 @@ async def build_engine(settings: dict) -> SkillEngine:
     # --- 埋め込みサーバー設定 ---
     routing_cfg = load_yaml_config(CONFIG_DIR / "llm" / "routing.yaml")
     embed_cfg = routing_cfg.get("embedding_server", {})
-    embed_url = embed_cfg.get("local_url", "http://localhost:8001")
+    # Docker 環境では EMBED_URL 環境変数（http://embed:8001）を優先する
+    embed_url = os.environ.get("EMBED_URL") or embed_cfg.get("local_url", "http://localhost:8001")
 
     # --- Skill 登録 ---
     browse_source = BrowseSourceSkill(config_dir=CONFIG_DIR)
@@ -237,7 +238,8 @@ async def _run_agent_loop(settings: dict) -> None:
     qdrant_port = int(qdrant_cfg.get("port", 6333))
 
     routing_cfg = load_yaml_config(CONFIG_DIR / "llm" / "routing.yaml")
-    embed_url = routing_cfg.get("embedding_server", {}).get("local_url", "http://localhost:8001")
+    # Docker 環境では EMBED_URL 環境変数（http://embed:8001）を優先する
+    embed_url = os.environ.get("EMBED_URL") or routing_cfg.get("embedding_server", {}).get("local_url", "http://localhost:8001")
 
     # キャラクタースキル
     build_persona_context = BuildPersonaContextSkill(config_dir=CONFIG_DIR)

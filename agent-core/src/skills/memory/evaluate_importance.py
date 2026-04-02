@@ -21,7 +21,7 @@ from models.llm import LLMClient
 logger = logging.getLogger(__name__)
 
 # デフォルトモデル（軽量判定用）
-_DEFAULT_MODEL: str = "qwen3.5:4b"
+_DEFAULT_MODEL: str = "llama3.1:latest"
 
 # パース失敗時のフォールバック値
 _FALLBACK_SCORE: float = 0.5

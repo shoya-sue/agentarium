@@ -410,10 +410,15 @@ class AgentLoop:
                     "store_episodic",
                     {
                         "skill": skill_name,
-                        "result_summary": content,
-                        "importance_score": importance_result.get("importance_score", 0.5),
-                        "topics": importance_result.get("topics", []),
-                        "cycle": self._cycle_count,
+                        "source": skill_name,   # store_episodic が要求するフィールド
+                        "result_count": 1,       # store_episodic が要求するフィールド
+                        "duration_ms": 0,        # store_episodic が要求するフィールド
+                        "metadata": {
+                            "result_summary": content,
+                            "importance_score": importance_result.get("importance_score", 0.5),
+                            "topics": importance_result.get("topics", []),
+                            "cycle": self._cycle_count,
+                        },
                     },
                 )
                 logger.info(

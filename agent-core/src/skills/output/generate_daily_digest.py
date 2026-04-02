@@ -17,7 +17,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # デフォルトモデル（サマリー生成は中型モデルで十分）
-_DEFAULT_MODEL: str = "qwen3.5:14b"
+_DEFAULT_MODEL: str = "llama3.1:latest"
 
 
 def _build_digest_prompt(entries: list[dict[str, Any]], date_str: str) -> str:

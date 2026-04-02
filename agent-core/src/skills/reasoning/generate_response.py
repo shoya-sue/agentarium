@@ -18,7 +18,7 @@ from models.llm import LLMClient
 logger = logging.getLogger(__name__)
 
 # デフォルトモデル（キャラクター応答は中型モデルで十分）
-_DEFAULT_MODEL: str = "qwen3.5:14b"
+_DEFAULT_MODEL: str = "qwen3.5:35b-a3b"
 
 # デフォルトプラットフォーム
 _DEFAULT_PLATFORM: str = "discord"

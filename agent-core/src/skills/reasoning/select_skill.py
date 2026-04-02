@@ -22,7 +22,7 @@ from models.llm import LLMClient
 logger = logging.getLogger(__name__)
 
 # デフォルトモデル（高精度な意思決定のため大型モデルを使用）
-_DEFAULT_MODEL: str = "qwen3.5:35b-a3b"
+_DEFAULT_MODEL: str = "gemma3:27b"
 
 # フォールバック時の返却値
 _IDLE_SKILL: str = "IDLE"

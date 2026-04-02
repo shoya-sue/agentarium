@@ -22,7 +22,7 @@ from models.llm import LLMClient
 logger = logging.getLogger(__name__)
 
 # デフォルトモデル（高精度な計画立案のため大型モデルを使用）
-_DEFAULT_MODEL: str = "qwen3.5:35b-a3b"
+_DEFAULT_MODEL: str = "gemma3:27b"
 
 # デフォルト最大ステップ数
 _DEFAULT_MAX_STEPS: int = 5
