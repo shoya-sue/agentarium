@@ -98,6 +98,8 @@ services:
       - qdrant
       - embed
       - browser
+      - neo4j
+      - voicevox
     environment:
       - QDRANT_URL=http://qdrant:6333
       - EMBED_URL=http://embed:8001
@@ -107,6 +109,10 @@ services:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
       - DISCORD_CHANNEL_GENERAL=${DISCORD_CHANNEL_GENERAL:-}
       - ENABLE_AGENT_LOOP=${ENABLE_AGENT_LOOP:-false}
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-agentarium}
+      - VOICEVOX_URL=http://voicevox:50021
     volumes:
       - ./config:/app/config:ro          # 設定ファイル（読み取り専用）
       - ./data:/app/data                 # 出力データ（読み書き）
@@ -115,6 +121,27 @@ services:
     # ホスト上の Ollama / MLX に接続するため extra_hosts が必要（Linux 環境）
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  # Neo4j グラフDB（Phase 4: GraphRAG）
+  neo4j:
+    image: neo4j:5
+    container_name: agentarium-neo4j
+    ports:
+      - "7474:7474"   # Neo4j Browser UI
+      - "7687:7687"   # Bolt プロトコル
+    environment:
+      - NEO4J_AUTH=neo4j/agentarium
+    volumes:
+      - ./data/neo4j:/data
+    restart: unless-stopped
+
+  # VOICEVOX 音声合成エンジン（Phase 4: TTS）
+  voicevox:
+    image: voicevox/voicevox_engine:cpu-ubuntu20.04-latest
+    container_name: agentarium-voicevox
+    ports:
+      - "50021:50021"
+    restart: unless-stopped
 
   # 監視ダッシュボード（Phase 4a）
   dashboard:

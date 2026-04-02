@@ -1,0 +1,63 @@
+name: run_dialogue
+version: "1.0.0"
+category: reasoning
+phase: 4
+description: "Zephyr（explorer_and_reporter）と Lynx（critic_and_validator）のターン制マルチエージェント対話を実行する"
+
+input:
+  type: object
+  required: [topic]
+  properties:
+    topic:
+      type: string
+      description: "対話のトピック/質問"
+    max_turns:
+      type: integer
+      minimum: 1
+      maximum: 10
+      default: 4
+      description: "最大ターン数（1ターン = 1エージェントの発言）"
+    initial_speaker:
+      type: string
+      enum: [zephyr, lynx]
+      default: "zephyr"
+      description: "最初に発言するエージェント"
+    context:
+      type: string
+      description: "対話の背景情報"
+
+output:
+  type: object
+  required: [topic, transcript, summary, completed_at]
+  properties:
+    topic:
+      type: string
+    transcript:
+      type: array
+      items:
+        type: object
+        properties:
+          agent:
+            type: string
+          turn:
+            type: integer
+          content:
+            type: string
+      description: "対話トランスクリプト（ターン順）"
+    summary:
+      type: string
+      description: "対話の要約"
+    completed_at:
+      type: string
+      format: date-time
+
+agents:
+  zephyr:
+    role: explorer_and_reporter
+    description: "トピックを広く探索し、新しい視点・洞察を提示する"
+  lynx:
+    role: critic_and_validator
+    description: "発言を批判的に検証し、論理的欠陥・改善案を指摘する"
+
+trace:
+  log_fields: [topic, max_turns, turns_completed, duration_ms]

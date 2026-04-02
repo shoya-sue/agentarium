@@ -45,6 +45,11 @@ from skills.output.generate_daily_digest import GenerateDailyDigestSkill
 from skills.output.generate_topic_report import GenerateTopicReportSkill
 from skills.output.generate_trend_alert import GenerateTrendAlertSkill
 from skills.character.apply_drift import ApplyDriftSkill
+from skills.memory.store_knowledge_node import StoreKnowledgeNodeSkill
+from skills.memory.store_knowledge_relation import StoreKnowledgeRelationSkill
+from skills.memory.query_knowledge_graph import QueryKnowledgeGraphSkill
+from skills.reasoning.run_dialogue import RunDialogueSkill
+from skills.character.synthesize_speech import SynthesizeSpeechSkill
 from utils.config import load_yaml_config
 
 # ──────────────────────────────────────────────
@@ -302,6 +307,29 @@ async def _run_agent_loop(settings: dict) -> None:
     # キャラクタースキル（Phase 4a）
     apply_drift = ApplyDriftSkill()
 
+    # GraphRAG スキル（Phase 4: Neo4j）
+    neo4j_uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
+    neo4j_user = os.environ.get("NEO4J_USER", "neo4j")
+    neo4j_password = os.environ.get("NEO4J_PASSWORD", "agentarium")
+    store_knowledge_node = StoreKnowledgeNodeSkill(
+        neo4j_uri=neo4j_uri, neo4j_user=neo4j_user, neo4j_password=neo4j_password
+    )
+    store_knowledge_relation = StoreKnowledgeRelationSkill(
+        neo4j_uri=neo4j_uri, neo4j_user=neo4j_user, neo4j_password=neo4j_password
+    )
+    query_knowledge_graph = QueryKnowledgeGraphSkill(
+        neo4j_uri=neo4j_uri, neo4j_user=neo4j_user, neo4j_password=neo4j_password
+    )
+
+    # マルチエージェント対話スキル（Phase 4）
+    run_dialogue = RunDialogueSkill(llm_client=llm)
+
+    # VOICEVOX TTS スキル（Phase 4）
+    voicevox_url = os.environ.get("VOICEVOX_URL", "http://localhost:50021")
+    synthesize_speech = SynthesizeSpeechSkill(
+        voicevox_url=voicevox_url, data_dir=DATA_DIR
+    )
+
     # browse_source ラッパー（AgentLoop から各フィードを個別スキルとして選択可能にする）
     browse_source_skill = BrowseSourceSkill(config_dir=CONFIG_DIR)
 
@@ -353,6 +381,14 @@ async def _run_agent_loop(settings: dict) -> None:
         "generate_trend_alert": generate_trend_alert.run,
         # キャラクター（Phase 4a）
         "apply_drift": apply_drift.run,
+        # GraphRAG（Phase 4: Neo4j）
+        "store_knowledge_node": store_knowledge_node.run,
+        "store_knowledge_relation": store_knowledge_relation.run,
+        "query_knowledge_graph": query_knowledge_graph.run,
+        # マルチエージェント対話（Phase 4）
+        "run_dialogue": run_dialogue.run,
+        # VOICEVOX TTS（Phase 4）
+        "synthesize_speech": synthesize_speech.run,
     }
 
     loop = AgentLoop(

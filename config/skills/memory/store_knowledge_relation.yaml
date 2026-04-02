@@ -1,0 +1,47 @@
+name: store_knowledge_relation
+version: "1.0.0"
+category: memory
+phase: 4
+description: "GraphRAG: Neo4j 知識グラフにノード間リレーションを保存する（MERGE upsert）"
+
+input:
+  type: object
+  required: [source_id, target_id, relation_type]
+  properties:
+    source_id:
+      type: string
+      description: "起点ノードの entity_id"
+    target_id:
+      type: string
+      description: "終点ノードの entity_id"
+    relation_type:
+      type: string
+      description: "リレーション種別（RELATED_TO / CAUSES / PART_OF / PRECEDES / SIMILAR_TO 等）"
+    description:
+      type: string
+    weight:
+      type: number
+      minimum: 0.0
+      maximum: 1.0
+      default: 1.0
+    bidirectional:
+      type: boolean
+      default: false
+      description: "True の場合、逆方向リレーションも作成する"
+
+output:
+  type: object
+  required: [source_id, target_id, relation_type, stored_at]
+  properties:
+    source_id:
+      type: string
+    target_id:
+      type: string
+    relation_type:
+      type: string
+    stored_at:
+      type: string
+      format: date-time
+
+trace:
+  log_fields: [source_id, target_id, relation_type, bidirectional, duration_ms]

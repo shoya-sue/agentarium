@@ -1,0 +1,79 @@
+name: synthesize_speech
+version: "1.0.0"
+category: character
+phase: 4
+description: "L3 感情状態（valence/arousal/dominance）を VOICEVOX 音声パラメータに変換し音声を生成する"
+
+input:
+  type: object
+  required: [text]
+  properties:
+    text:
+      type: string
+      description: "読み上げテキスト"
+    valence:
+      type: number
+      minimum: -1.0
+      maximum: 1.0
+      default: 0.0
+      description: "感情の快/不快 (-1.0=不快, 1.0=快)"
+    arousal:
+      type: number
+      minimum: -1.0
+      maximum: 1.0
+      default: 0.0
+      description: "覚醒度 (-1.0=低覚醒/眠い, 1.0=高覚醒/興奮)"
+    dominance:
+      type: number
+      minimum: -1.0
+      maximum: 1.0
+      default: 0.0
+      description: "支配性 (-1.0=従属的, 1.0=支配的)"
+    speaker_id:
+      type: integer
+      description: "スピーカーIDの上書き（省略時は感情から自動選択）"
+    output_filename:
+      type: string
+      description: "出力ファイル名（省略時はUUID.wav）"
+
+output:
+  type: object
+  required: [file_path, speaker_id, speed, pitch, synthesized_at, voicevox_available]
+  properties:
+    file_path:
+      type: string
+      description: "保存先 WAV ファイルパス"
+    speaker_id:
+      type: integer
+    speed:
+      type: number
+      description: "音声速度スケール"
+    pitch:
+      type: number
+      description: "ピッチ調整値"
+    duration_hint:
+      type: number
+      nullable: true
+      description: "音声長ヒント（秒）— 将来実装"
+    synthesized_at:
+      type: string
+      format: date-time
+    voicevox_available:
+      type: boolean
+      description: "VOICEVOX サーバーへの接続成否"
+
+voicevox:
+  default_url: "http://localhost:50021"
+  speaker_map:
+    default: 3       # ずんだもん（ノーマル）
+    happy_excited: 3
+    calm_happy: 2
+    angry_upset: 6
+    sad_tired: 0
+
+tts:
+  primary: "style_bert_vits2"   # D14: メイン TTS（将来実装）
+  fallback: "voicevox"          # D14: フォールバック TTS
+
+trace:
+  log_fields: [speaker_id, speed, pitch, voicevox_available, duration_ms]
