@@ -195,6 +195,7 @@ async def _run_patrol_scheduler(engine: SkillEngine) -> None:
     scheduler = PatrolScheduler(
         config_dir=CONFIG_DIR,
         handler=patrol_handler,
+        data_dir=DATA_DIR,
     )
     try:
         await scheduler.start()
