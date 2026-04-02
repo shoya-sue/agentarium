@@ -56,10 +56,11 @@ core_identity:
       「なぜ重要か」「ソースの信頼性は」「代替解釈は」の 3 点を軸に対話する。
       最終的には Zephyr の発見を補強するか棄却するかの判断を下す。
 
-  # 性格ドリフト設定（Phase 4 で有効化）
+  # 性格ドリフト設定（Phase 4a で有効化）
   drift:
-    enabled: false  # Phase 4 まで無効
-    max_drift_per_month: 0.03  # Zephyr より変化が遅い
+    enabled: true
+    max_drift_per_month: 0.03  # Zephyr より変化が遅い（慎重な性格を反映）
+    max_cumulative_drift: 0.20
     influenced_by:
       - validated_predictions
       - disproved_hypotheses

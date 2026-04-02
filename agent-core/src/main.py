@@ -44,6 +44,7 @@ from skills.reasoning.generate_goal import GenerateGoalSkill
 from skills.output.generate_daily_digest import GenerateDailyDigestSkill
 from skills.output.generate_topic_report import GenerateTopicReportSkill
 from skills.output.generate_trend_alert import GenerateTrendAlertSkill
+from skills.character.apply_drift import ApplyDriftSkill
 from utils.config import load_yaml_config
 
 # ──────────────────────────────────────────────
@@ -297,6 +298,9 @@ async def _run_agent_loop(settings: dict) -> None:
     generate_topic_report = GenerateTopicReportSkill(llm_client=llm)
     generate_trend_alert = GenerateTrendAlertSkill(llm_client=llm)
 
+    # キャラクタースキル（Phase 4a）
+    apply_drift = ApplyDriftSkill()
+
     # browse_source ラッパー（AgentLoop から各フィードを個別スキルとして選択可能にする）
     browse_source_skill = BrowseSourceSkill(config_dir=CONFIG_DIR)
 
@@ -346,6 +350,8 @@ async def _run_agent_loop(settings: dict) -> None:
         "generate_daily_digest": generate_daily_digest.run,
         "generate_topic_report": generate_topic_report.run,
         "generate_trend_alert": generate_trend_alert.run,
+        # キャラクター（Phase 4a）
+        "apply_drift": apply_drift.run,
     }
 
     loop = AgentLoop(
