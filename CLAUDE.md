@@ -9,7 +9,7 @@ Zethi/Prako Discord Agent + Talkov-Chan Skill Architecture の発展型。
 
 - **言語**: Python 3.12
 - **LLM**: Ollama or MLX（ローカル） — **Qwen3.5-35B-A3B** / Qwen3.5-14B / Qwen3.5-4B
-- **埋め込み**: Phase 0 で検証（nomic-embed-text vs multilingual-e5-base）
+- **埋め込み**: multilingual-e5-base（Phase 0 検証済み: avg cosine 0.810）
 - **ブラウザ**: Playwright Stealth（rebrowser-playwright）
 - **記憶**: Qdrant（ベクトルDB）
 - **実行環境**: Docker Compose + ホスト直接 Ollama/MLX（Mac M4 Pro 48GB）
@@ -81,11 +81,11 @@ agentarium/
 
 | Phase | 目的 | Skill数 | 状態 |
 |-------|------|---------|------|
-| 0 | 技術検証（LLM速度、埋め込み日本語、Stealth） | — | **次に着手** |
-| 1 | 情報収集 Agent（アダプタ + ルールベース巡回） | 10 | 未着手 |
-| 2 | 記憶強化 + キャラクター + Discord + LLM駆動Skill選択 | +8 | 未着手 |
-| 3 | 完全自律 + 感情・疲労モデル + デュアルプレゼンス | +6 | 未着手 |
-| 4 | 発展・最適化（GraphRAG、VOICEVOX、ドリフト等） | +α | 未着手 |
+| 0 | 技術検証（LLM速度、埋め込み日本語、Stealth） | — | ✅ 完了（2026-03-31, V1〜V7 全合格） |
+| 1 | 情報収集 Agent（アダプタ + ルールベース巡回） | 10 | ✅ 完了 |
+| 2 | 記憶強化 + キャラクター + Discord + LLM駆動Skill選択 | +8 | ✅ 完了 |
+| 3 | 完全自律 + 感情・疲労モデル + デュアルプレゼンス | +6 | ✅ 完了（post_x/reply_x は dry_run=True） |
+| 4 | 発展・最適化（GraphRAG、VOICEVOX、ドリフト等） | +α | 🔜 次フェーズ |
 
 ## 開発コマンド
 
