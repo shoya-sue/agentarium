@@ -216,7 +216,7 @@ class TestReflectSkill:
 
     @pytest.mark.asyncio
     async def test_default_model_is_14b(self):
-        """デフォルトモデルは qwen3.5:14b"""
+        """デフォルトモデルは qwen3.5:35b-a3b"""
         from skills.reasoning.reflect import ReflectSkill
         from models.llm import LLMClient
 
@@ -234,7 +234,7 @@ class TestReflectSkill:
             "working_memory": _sample_working_memory_summary(),
         })
 
-        assert captured["model"] == "qwen3.5:14b"
+        assert captured["model"] == "qwen3.5:35b-a3b"
 
     @pytest.mark.asyncio
     async def test_model_override_via_params(self):
