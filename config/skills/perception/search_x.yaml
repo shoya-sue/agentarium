@@ -1,0 +1,127 @@
+name: search_x
+version: "1.0"
+category: perception
+phase: 5
+description: "X の高度検索クエリでツイートを取得する（min_faves / lang / since 等のフィルタ対応）"
+
+input:
+  type: object
+  required: []
+  properties:
+    keyword:
+      type: string
+      description: "検索キーワード（スペース区切りで AND 検索）"
+      default: ""
+    exact_phrase:
+      type: string
+      description: "完全一致フレーズ（ダブルクォートで囲まれる）"
+      default: ""
+    or_keywords:
+      type: array
+      items:
+        type: string
+      description: "OR 検索キーワード（例: ['AI', 'LLM']）"
+      default: []
+    lang:
+      type: string
+      description: "言語コード（例: 'en', 'ja'）"
+      default: null
+    from_user:
+      type: string
+      description: "特定ユーザーのツイートのみ（@ 不要）"
+      default: null
+    to_user:
+      type: string
+      description: "特定ユーザーへのリプライのみ（@ 不要）"
+      default: null
+    since:
+      type: string
+      description: "開始日（YYYY-MM-DD）"
+      default: null
+    until:
+      type: string
+      description: "終了日（YYYY-MM-DD）"
+      default: null
+    min_faves:
+      type: integer
+      description: "最小いいね数"
+      default: null
+    min_retweets:
+      type: integer
+      description: "最小リポスト数"
+      default: null
+    min_replies:
+      type: integer
+      description: "最小リプライ数"
+      default: null
+    filters:
+      type: array
+      items:
+        type: string
+        enum: [links, media, images, videos, verified]
+      description: "追加フィルタ（links=リンク付き, media=メディア付き, verified=認証済み）"
+      default: []
+    exclude:
+      type: array
+      items:
+        type: string
+        enum: [replies, retweets]
+      description: "除外フィルタ（replies=リプライ除外, retweets=RT除外）"
+      default: []
+    sort:
+      type: string
+      enum: [top, live]
+      description: "'top'=エンゲージメント順（バズ取得向き）, 'live'=時系列順"
+      default: "top"
+    max_results:
+      type: integer
+      description: "最大取得件数"
+      default: 20
+    cookies_file:
+      type: string
+      description: "Cookie ファイルパス（デフォルト: data/browser-profile/cookies.json）"
+      default: null
+
+output:
+  type: object
+  properties:
+    tweets:
+      type: array
+      description: "取得したツイートリスト"
+      items:
+        type: object
+        properties:
+          text:
+            type: string
+          author:
+            type: string
+          display_name:
+            type: string
+          url:
+            type: string
+          faves:
+            type: integer
+          retweets:
+            type: integer
+          replies:
+            type: integer
+          created_at:
+            type: string
+    query:
+      type: string
+      description: "実際に使用した検索クエリ文字列"
+    url:
+      type: string
+      description: "アクセスした検索 URL"
+    count:
+      type: integer
+      description: "取得件数"
+    fetched_at:
+      type: string
+      description: "取得日時（ISO 8601）"
+    error:
+      type: string
+      description: "エラーメッセージ（正常時は含まれない）"
+
+trace:
+  log_fields: [keyword, lang, min_faves, since, until, sort, max_results, count, fetched_at, error]
