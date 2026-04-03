@@ -7,7 +7,11 @@ agent:
   log_level: "${LOG_LEVEL:-INFO}"
   data_dir: "data"
   # AgentLoop で使用するキャラクター名（config/characters/{name}.yaml が必要）
+  # characters リストが優先される（複数キャラを並行起動）
   character_name: "zephyr"
+  characters:
+    - "zephyr"
+    - "lynx"
   # AgentLoop サイクル間隔（秒）。短くするほど判断が速くなる
   agent_loop_interval_seconds: 15
 
@@ -58,6 +62,10 @@ discord:
   max_message_length: 2000
   channels:
     general: ""  # 環境変数 DISCORD_CHANNEL_GENERAL で上書き
+  # キャラクター別 Webhook（Phase 4）。未設定時は webhook_url にフォールバック
+  character_webhooks:
+    zephyr: "${DISCORD_WEBHOOK_URL_ZEPHYR:-}"
+    lynx: "${DISCORD_WEBHOOK_URL_LYNX:-}"
 
 speech:
   output_dir: "data/outputs/speech"

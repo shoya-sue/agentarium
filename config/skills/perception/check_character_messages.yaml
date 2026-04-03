@@ -1,0 +1,48 @@
+name: check_character_messages
+version: "1.0.0"
+category: perception
+phase: 4
+description: "キャラクター間メッセージキューを確認し、未読メッセージを取得する"
+
+llm:
+  backend: null  # LLM 不使用（キューのポーリングのみ）
+
+input:
+  type: object
+  required: [character_name]
+  properties:
+    character_name:
+      type: string
+      description: "受信キャラクター名（例: zephyr, lynx）"
+    max_messages:
+      type: integer
+      default: 5
+      description: "1回に取り出す最大メッセージ件数"
+
+output:
+  type: object
+  properties:
+    character_name:
+      type: string
+    messages:
+      type: array
+      items:
+        type: object
+        properties:
+          from_character:
+            type: string
+          to_character:
+            type: string
+          content:
+            type: string
+          timestamp:
+            type: string
+          metadata:
+            type: object
+    count:
+      type: integer
+    has_messages:
+      type: boolean
+
+trace:
+  log_fields: [character_name, count, has_messages]

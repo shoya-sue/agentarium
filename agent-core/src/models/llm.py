@@ -18,6 +18,8 @@ from typing import Any
 
 import httpx
 
+from utils.llm_trace import record_llm_event
+
 logger = logging.getLogger(__name__)
 
 # Ollama generate API のデフォルト設定
@@ -146,6 +148,16 @@ class LLMClient:
             eval_count=data["eval_count"],
             eval_duration_ns=data["eval_duration"],
         )
+
+        # LLM I/O をコンテキストに記録（SkillTrace キャプチャ用）
+        record_llm_event({
+            "model": result.model,
+            "prompt": prompt,
+            "response": result.content,
+            "prompt_tokens": result.prompt_eval_count,
+            "output_tokens": result.eval_count,
+            "duration_ms": round(result.eval_duration_ns / 1e6),
+        })
 
         logger.debug(
             "LLM 完了: %.1f tok/s (%d tokens / %.1fs)",

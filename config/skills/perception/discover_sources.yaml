@@ -1,0 +1,56 @@
+name: discover_sources
+version: "1.0"
+category: perception
+phase: 5
+description: "キャラクターの興味・関心から DuckDuckGo で新しい RSS フィードを発見し rss_feeds.yaml に追加する"
+
+input:
+  type: object
+  required: []
+  properties:
+    interests:
+      type: array
+      items:
+        type: string
+      description: "検索するトピックリスト（例: ['アニメ', 'インディーゲーム', 'AI・LLM']）"
+      default: []
+    max_new_feeds:
+      type: integer
+      description: "追加する最大フィード数"
+      default: 3
+    dry_run:
+      type: boolean
+      description: "True の場合、YAML への書き込みをスキップして発見のみ行う"
+      default: false
+
+output:
+  type: object
+  properties:
+    added:
+      type: array
+      description: "実際に rss_feeds.yaml へ追加されたフィード（dry_run=True の場合は空）"
+      items:
+        type: object
+        properties:
+          url:
+            type: string
+          title:
+            type: string
+          language:
+            type: string
+          category:
+            type: string
+    discovered:
+      type: array
+      description: "発見されたフィード全件（dry_run 時も含む）"
+    skipped_existing:
+      type: integer
+      description: "既存フィードと重複してスキップした数"
+    skipped_invalid:
+      type: integer
+      description: "feedparser 検証失敗でスキップした数"
+    dry_run:
+      type: boolean
+
+trace:
+  log_fields: [interests, discovered_count, added_count, skipped_existing, skipped_invalid, dry_run, duration_ms, error]

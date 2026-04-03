@@ -1,0 +1,46 @@
+name: send_character_message
+version: "1.0.0"
+category: action
+phase: 4
+description: "キャラクター間メッセージキューに送信し、Discord にも通知する"
+
+llm:
+  backend: null  # LLM 不使用（Action Skill）
+
+input:
+  type: object
+  required: [from_character, to_character, content]
+  properties:
+    from_character:
+      type: string
+      description: "送信キャラクター名（例: zephyr）"
+    to_character:
+      type: string
+      description: "受信キャラクター名（例: lynx）"
+    content:
+      type: string
+      description: "送信メッセージ本文"
+    metadata:
+      type: object
+      description: "付加情報（トピック・感情スコア等、任意）"
+
+output:
+  type: object
+  properties:
+    sent:
+      type: boolean
+    from_character:
+      type: string
+    to_character:
+      type: string
+    content_length:
+      type: integer
+    queued:
+      type: boolean
+    discord_sent:
+      type: boolean
+    timestamp:
+      type: string
+
+trace:
+  log_fields: [from_character, to_character, content_length, queued, discord_sent]

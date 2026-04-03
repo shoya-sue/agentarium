@@ -34,6 +34,9 @@ _HTTP_TIMEOUT: float = 10.0
 # Webhook URL の環境変数名
 _ENV_WEBHOOK_URL: str = "DISCORD_WEBHOOK_URL"
 
+# キャラクター別 Webhook URL の環境変数名プレフィックス（例: DISCORD_WEBHOOK_URL_ZEPHYR）
+_ENV_WEBHOOK_URL_PREFIX: str = "DISCORD_WEBHOOK_URL_"
+
 
 def _load_settings(config_dir: Path) -> dict[str, Any]:
     """
@@ -51,12 +54,15 @@ def _load_settings(config_dir: Path) -> dict[str, Any]:
 def _resolve_webhook_url(
     webhook_url_param: str | None,
     settings: dict[str, Any],
+    character_name: str | None = None,
 ) -> str | None:
     """
     Webhook URL を解決する。優先順位:
     1. params の webhook_url
-    2. 環境変数 DISCORD_WEBHOOK_URL
-    3. settings.yaml の discord.webhook_url
+    2. キャラクター別環境変数（例: DISCORD_WEBHOOK_URL_ZEPHYR）
+    3. キャラクター別 settings.yaml（discord.character_webhooks.{name}）
+    4. 環境変数 DISCORD_WEBHOOK_URL（共通フォールバック）
+    5. settings.yaml の discord.webhook_url（共通フォールバック）
 
     Returns:
         解決された Webhook URL、または None
@@ -65,12 +71,27 @@ def _resolve_webhook_url(
     if webhook_url_param:
         return webhook_url_param
 
-    # 2. 環境変数
+    # 2. キャラクター別環境変数
+    if character_name:
+        char_env_key = _ENV_WEBHOOK_URL_PREFIX + character_name.upper()
+        char_env_url = os.environ.get(char_env_key, "")
+        if char_env_url:
+            return char_env_url
+
+    # 3. キャラクター別 settings.yaml
+    if character_name:
+        discord_cfg = settings.get("discord", {})
+        char_webhooks = discord_cfg.get("character_webhooks", {})
+        char_settings_url = char_webhooks.get(character_name.lower(), "")
+        if char_settings_url:
+            return char_settings_url
+
+    # 4. 環境変数（共通フォールバック）
     env_url = os.environ.get(_ENV_WEBHOOK_URL, "")
     if env_url:
         return env_url
 
-    # 3. settings.yaml
+    # 5. settings.yaml（共通フォールバック）
     discord_cfg = settings.get("discord", {})
     settings_url = discord_cfg.get("webhook_url", "")
     if settings_url:
@@ -154,8 +175,11 @@ class SendDiscordSkill:
         avatar_url: str | None = params.get("avatar_url")
         webhook_url_param: str | None = params.get("webhook_url")
 
+        # params に character_name が渡された場合、キャラクター別 webhook を使用
+        character_name: str | None = params.get("character_name")
+
         # Webhook URL の解決
-        webhook_url = _resolve_webhook_url(webhook_url_param, self._settings)
+        webhook_url = _resolve_webhook_url(webhook_url_param, self._settings, character_name)
         if not webhook_url:
             raise ValueError(
                 "Discord Webhook URL が設定されていません。"
@@ -187,10 +211,12 @@ class SendDiscordSkill:
             )
 
         # Webhook ペイロード組み立て（immutable dict として構築）
+        # character_name が指定されている場合はキャラクター別 Webhook を使用しており、
+        # Discord 側で設定した Webhook 名・アイコンをそのまま使うため username を挿入しない
         payload: dict[str, Any] = {"content": truncated_message}
         if username:
             payload = {**payload, "username": username}
-        elif self._get_default_username():
+        elif not character_name and self._get_default_username():
             payload = {**payload, "username": self._get_default_username()}
         if avatar_url:
             payload = {**payload, "avatar_url": avatar_url}

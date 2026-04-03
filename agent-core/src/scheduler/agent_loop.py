@@ -20,7 +20,9 @@ from typing import Any
 
 from core.working_memory import WorkingMemory
 from core.safety_guard import SafetyGuard
+from core.skill_trace import SkillTrace
 from utils.config import find_project_root
+from utils.llm_trace import llm_events_var
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,10 @@ _AVAILABLE_SKILL_NAMES: list[str] = [
     "build_persona_context",
     "generate_response",
     "send_discord",
+    # Phase 4: キャラクター間対話
+    "send_character_message",
+    "check_character_messages",
+    # map_message_emotion は check_character_messages の自動チェーン専用（LLM が直接選択しない）
     _IDLE_SKILL,
 ]
 
@@ -82,34 +88,9 @@ _AVAILABLE_SKILLS_META: list[dict[str, Any]] = [
         "when_to_use": "コンテンツをベクトル化して長期記憶に保存するとき",
     },
     {
-        "name": "build_llm_context",
-        "description": "LLM に渡すコンテキストを構築する",
-        "when_to_use": "LLM 呼び出し前にコンテキストを整理するとき",
-    },
-    {
-        "name": "evaluate_importance",
-        "description": "コンテンツの重要度を評価する",
-        "when_to_use": "記憶するかどうかを判断するとき",
-    },
-    {
-        "name": "select_skill",
-        "description": "次に実行すべき Skill を選択する",
-        "when_to_use": "意思決定が必要なとき（通常はループが自動的に呼び出す）",
-    },
-    {
         "name": "plan_task",
         "description": "目標を達成するための実行計画を立案する",
         "when_to_use": "複数ステップのタスクを計画するとき",
-    },
-    {
-        "name": "reflect",
-        "description": "実行サイクルを振り返り学習する",
-        "when_to_use": "周期的な自己評価が必要なとき（通常はループが自動的に呼び出す）",
-    },
-    {
-        "name": "build_persona_context",
-        "description": "キャラクターのペルソナコンテキストを組み立てる",
-        "when_to_use": "キャラクターとして応答する前に呼び出す",
     },
     {
         "name": "generate_response",
@@ -121,12 +102,72 @@ _AVAILABLE_SKILLS_META: list[dict[str, Any]] = [
         "description": "Discord Webhook にメッセージを送信する",
         "when_to_use": "Discord チャンネルにメッセージを投稿するとき",
     },
+    # Phase 4: キャラクター間対話
+    {
+        "name": "send_character_message",
+        "description": "パートナーキャラクター（Zephyr/Lynx）にメッセージを送信し、Discord にも同時投稿する",
+        "when_to_use": "パートナーと話したいとき — 技術トレンドの共有、意見交換、アニメ・ゲーム・音楽などエンタメの話、雑談、何か面白いものを見つけたときなど。気軽に話しかけて構わない",
+    },
+    {
+        "name": "check_character_messages",
+        "description": "パートナーキャラクターからの未読メッセージを確認する",
+        "when_to_use": "パートナーからのメッセージが届いているか確認するとき（定期的に実行すること）",
+    },
     {
         "name": _IDLE_SKILL,
         "description": "何もしない（待機）",
         "when_to_use": "特にすべきことがないとき",
     },
+    # Phase 5: RSS ソース自律発見
+    {
+        "name": "discover_sources",
+        "description": "自分の興味・関心キーワードで DuckDuckGo を検索し、新しい RSS フィードを発見して rss_feeds.yaml に追加する",
+        "when_to_use": "新しい情報源を開拓したいとき、既読ネタが偏っていると感じたとき、趣味系（アニメ・ゲーム・音楽等）のフィードが少ないと感じたとき",
+    },
 ]
+
+
+def _summarize_result(skill_name: str, result: Any) -> dict[str, Any]:
+    """Skill 実行結果をダッシュボード表示用に要約する。"""
+    if not isinstance(result, dict):
+        return {"raw": str(result)[:200]}
+
+    if skill_name in ("fetch_hacker_news", "fetch_rss", "fetch_github_trending"):
+        items = result.get("items", result.get("stories", []))
+        count = result.get("count", len(items) if isinstance(items, list) else 0)
+        titles = [item.get("title", "") for item in (items[:5] if isinstance(items, list) else [])]
+        return {"count": count, "titles": titles}
+
+    if skill_name == "evaluate_importance":
+        return {
+            "importance_score": result.get("importance_score"),
+            "should_store": result.get("should_store"),
+            "reasoning": str(result.get("reasoning", ""))[:200],
+            "topics": result.get("topics", []),
+        }
+
+    if skill_name == "select_skill":
+        return {
+            "selected_skill": result.get("selected_skill"),
+            "reasoning": str(result.get("reasoning", ""))[:200],
+            "confidence": result.get("confidence"),
+        }
+
+    if skill_name == "reflect":
+        return {
+            "cycle_summary": str(result.get("cycle_summary", ""))[:200],
+            "self_evaluation_score": result.get("self_evaluation_score"),
+            "achievements_count": len(result.get("achievements", [])),
+        }
+
+    if skill_name == "generate_response":
+        return {
+            "response_text": str(result.get("response_text", ""))[:500],
+            "character_name": result.get("character_name"),
+            "platform": result.get("platform"),
+        }
+
+    return {k: str(v)[:200] for k, v in list(result.items())[:5]}
 
 
 class AgentLoop:
@@ -153,6 +194,7 @@ class AgentLoop:
         max_cycles: int | None = None,
         config_dir: Path | str | None = None,
         skill_registry: dict[str, Any] | None = None,
+        traces_dir: Path | str | None = None,
     ) -> None:
         self._character_name = character_name
         self._cycle_interval_seconds = cycle_interval_seconds
@@ -163,6 +205,9 @@ class AgentLoop:
             self._config_dir = find_project_root(Path(__file__).resolve().parent) / "config"
         else:
             self._config_dir = Path(config_dir)
+
+        # traces_dir（SkillTrace 保存先）
+        self._traces_dir: Path | None = Path(traces_dir) if traces_dir is not None else None
 
         # WorkingMemory（イミュータブルパターン）
         self._memory: WorkingMemory = WorkingMemory()
@@ -294,6 +339,81 @@ class AgentLoop:
             logger.warning("サイクル %d: select_skill エラー: %s", self._cycle_count, exc)
             selected_skill = _IDLE_SKILL
 
+        # 4b. 各 Skill に必要なパラメータを自動補完
+        #     LLM が persona_context / trigger / character_name を提供できないため、ループが保持している値を注入する
+        if selected_skill == "generate_response":
+            if "persona_context" not in selected_params and persona_context:
+                selected_params = {**selected_params, "persona_context": persona_context}
+            # 想起した記憶から source_url を抽出してLLMに渡す（URL添付判断はLLMに委ねる）
+            if "source_urls" not in selected_params:
+                _recalled = self._memory.recalled_memories or []
+                _source_urls = [
+                    {
+                        "url": (m.get("payload") or {}).get("source_url", ""),
+                        "title": str((m.get("payload") or {}).get("title", "") or ""),
+                    }
+                    for m in _recalled
+                    if (m.get("payload") or {}).get("source_url")
+                ]
+                if _source_urls:
+                    selected_params = {**selected_params, "source_urls": _source_urls}
+            if "trigger" not in selected_params:
+                recent_traces = self._memory.to_summary_dict().get("recent_traces", [])
+                last_success = next(
+                    (t["skill_name"] for t in reversed(recent_traces) if t.get("status") == "success"),
+                    "最近の活動",
+                )
+                # 直前の Skill 名からトリガーを動的に決定する
+                if last_success in ("fetch_rss", "fetch_hacker_news", "fetch_github_trending"):
+                    trigger = f"最近見つけた面白い話題（テクノロジー・エンタメなど）をパートナーに伝える（直前: {last_success}）"
+                elif last_success in ("check_character_messages",):
+                    trigger = "パートナーへの返信や雑談を続ける"
+                else:
+                    trigger = f"自分の最近の興味・関心について気軽に話す（直前: {last_success}）"
+                selected_params = {**selected_params, "trigger": trigger}
+
+        if selected_skill == "check_character_messages":
+            # character_name を自動注入（AgentLoop が保持）
+            if "character_name" not in selected_params:
+                selected_params = {**selected_params, "character_name": self._character_name}
+
+        if selected_skill == "map_message_emotion":
+            # character_name を自動注入（LLMが省略した場合のフォールバック）
+            if "character_name" not in selected_params:
+                selected_params = {**selected_params, "character_name": self._character_name}
+
+        if selected_skill == "send_character_message":
+            # from_character を自動注入
+            if "from_character" not in selected_params:
+                selected_params = {**selected_params, "from_character": self._character_name}
+            # to_character を自動注入（LLMが省略した場合はパートナーキャラクターに送信）
+            if "to_character" not in selected_params:
+                _partner = {"zephyr": "lynx", "lynx": "zephyr"}.get(self._character_name, "")
+                if _partner:
+                    selected_params = {**selected_params, "to_character": _partner}
+            # content が未提供の場合は IDLE にフォールバック（LLMが内容を省略したケース）
+            if not selected_params.get("content"):
+                logger.warning(
+                    "サイクル %d: send_character_message の content が未提供のため IDLE にフォールバック",
+                    self._cycle_count,
+                )
+                selected_skill = _IDLE_SKILL
+                selected_params = {}
+
+        if selected_skill == "discover_sources":
+            # interests が未指定の場合、キャラクター YAML の motivation.interests を注入する
+            if "interests" not in selected_params:
+                try:
+                    import yaml as _yaml
+                    _char_yaml = self._config_dir / "characters" / f"{self._character_name}.yaml"
+                    with _char_yaml.open(encoding="utf-8") as _f:
+                        _char_cfg = _yaml.safe_load(_f) or {}
+                    _interests = _char_cfg.get("motivation", {}).get("interests", [])
+                    if _interests:
+                        selected_params = {**selected_params, "interests": _interests}
+                except Exception as _exc:
+                    logger.warning("discover_sources: キャラクター interests 読み込みエラー: %s", _exc)
+
         # 5. IDLE の場合はサイクルをスキップ
         if selected_skill == _IDLE_SKILL:
             logger.info("サイクル %d: IDLE — Skill 実行をスキップ", self._cycle_count)
@@ -346,6 +466,59 @@ class AgentLoop:
             self._memory = self._memory.with_trace(trace_entry)
             await self._maybe_reflect()
             return
+
+        # 7b. generate_response 成功時は send_discord を自動呼び出し
+        #     LLM は次サイクルで send_discord を選択しないため、ここで自動チェーン
+        if selected_skill == "generate_response":
+            response_text = skill_result.get("response_text", "")
+            platform = skill_result.get("platform", "discord")
+            if response_text and platform == "discord":
+                try:
+                    send_params: dict[str, Any] = {"message": response_text}
+                    char_name = skill_result.get("character_name")
+                    if char_name:
+                        # character_name を渡すことでキャラクター別 Webhook URL が選択される
+                        # send_discord は character_name がある場合 username を挿入しない
+                        # （Webhook 側のデフォルト名・アイコンを使用するため）
+                        send_params = {**send_params, "character_name": char_name}
+                    await self._call_skill("send_discord", send_params)
+                    logger.info("サイクル %d: Discord 自動送信完了", self._cycle_count)
+                except Exception as exc:
+                    logger.warning("サイクル %d: send_discord 自動チェーン エラー: %s", self._cycle_count, exc)
+
+        # 7c. check_character_messages 成功時の自動チェーン:
+        #     1. pending_character_messages を WorkingMemory に格納
+        #     2. メッセージがある場合は map_message_emotion を自動呼び出し
+        if selected_skill == "check_character_messages" and skill_result.get("has_messages"):
+            received_messages: list[dict[str, Any]] = skill_result.get("messages", [])
+            # WorkingMemory の pending_character_messages を更新（イミュータブル）
+            existing = list(self._memory.pending_character_messages)
+            self._memory = self._memory._copy(
+                pending_character_messages=existing + received_messages
+            )
+            logger.info(
+                "サイクル %d: 受信メッセージを WorkingMemory に格納 count=%d",
+                self._cycle_count,
+                len(received_messages),
+            )
+            # map_message_emotion を自動実行（クオリア感情マッピング）
+            try:
+                emotion_params: dict[str, Any] = {
+                    "character_name": self._character_name,
+                    "messages": received_messages,
+                }
+                if persona_context:
+                    emotion_params = {**emotion_params, "persona_context": persona_context}
+                emotion_result = await self._call_skill("map_message_emotion", emotion_params)
+                logger.info(
+                    "サイクル %d: クオリア感情マッピング完了 axes_updated=%s",
+                    self._cycle_count,
+                    emotion_result.get("axes_updated", []),
+                )
+                # 感情マッピング後は pending_character_messages をクリア
+                self._memory = self._memory._copy(pending_character_messages=[])
+            except Exception as exc:
+                logger.warning("サイクル %d: map_message_emotion 自動チェーン エラー: %s", self._cycle_count, exc)
 
         # 8. 重要度評価 → 必要なら episodic 記憶に保存
         await self._evaluate_and_store(
@@ -443,8 +616,8 @@ class AgentLoop:
         """
         Skill を呼び出すヘルパー。
 
-        skill_registry に登録されていればそのハンドラを呼び出す。
-        登録がない場合は NotImplementedError を raise する。
+        SkillTrace を作成して LLM I/O をキャプチャした後、
+        traces_dir に保存する。
 
         Args:
             skill_name: 実行する Skill 名
@@ -462,16 +635,35 @@ class AgentLoop:
                 f"Skill '{skill_name}' が skill_registry に登録されていません。"
                 "AgentLoop の skill_registry に Skill ハンドラを登録してください。"
             )
-        return await handler(params)
 
-    # ------------------------------------------------------------------
-    # ユーティリティ
-    # ------------------------------------------------------------------
+        trace = SkillTrace.start(skill_name, params)
+        # LLM I/O キャプチャ用リストをコンテキストにセット
+        token = llm_events_var.set([])
+        try:
+            result = await handler(params)
+            llm_calls: list[dict[str, Any]] = llm_events_var.get() or []
+            output_summary = _summarize_result(skill_name, result)
+            trace.finish(
+                result_count=len(result) if isinstance(result, (list, dict)) else None,
+                output=output_summary,
+                llm_calls=llm_calls,
+            )
+            return result
+        except Exception as exc:
+            llm_calls = llm_events_var.get() or []
+            trace.fail(
+                error=f"{type(exc).__name__}: {exc}",
+                llm_calls=llm_calls,
+            )
+            raise
+        finally:
+            llm_events_var.reset(token)
+            if self._traces_dir is not None:
+                try:
+                    trace.save(self._traces_dir)
+                except Exception as save_exc:
+                    logger.warning("SkillTrace 保存エラー: %s", save_exc)
 
     def _get_available_skills(self) -> list[str]:
-        """
-        実行可能な Skill 名のリストを返す。
-
-        固定リストから取得する。
-        """
+        """実行可能な Skill 名のリストを返す。"""
         return list(_AVAILABLE_SKILL_NAMES)

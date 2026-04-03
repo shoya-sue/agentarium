@@ -22,7 +22,7 @@ from models.llm import LLMClient
 logger = logging.getLogger(__name__)
 
 # デフォルトモデル（振り返りは中型モデルで十分）
-_DEFAULT_MODEL: str = "llama3.1:latest"
+_DEFAULT_MODEL: str = "qwen3.5:35b-a3b"
 
 # スコアのクランプ範囲
 _SCORE_MIN: float = 0.0
@@ -101,19 +101,18 @@ def _build_fallback_result(model: str) -> dict[str, Any]:
 def _build_system_prompt() -> str:
     """振り返り用のシステムプロンプトを返す。"""
     return (
-        "あなたは AI エージェントの自己反省モジュールです。\n"
-        "エージェントが実行したサイクルの記録を受け取り、\n"
-        "客観的に評価・振り返りを行います。\n\n"
-        "必ず以下の JSON 形式のみで回答してください:\n"
+        "You are the self-reflection module of an AI agent.\n"
+        "You receive a record of the agent's executed cycle and evaluate it objectively.\n\n"
+        "Respond ONLY in the following JSON format:\n"
         "{\n"
-        '  "cycle_summary": "今サイクルの活動まとめ（1-2文）",\n'
-        '  "achievements": ["達成事項1", "達成事項2"],\n'
-        '  "failures": ["失敗・問題点1"],\n'
-        '  "key_learnings": ["学習事項1"],\n'
-        '  "next_cycle_suggestions": ["次サイクルへの提案1"],\n'
+        '  "cycle_summary": "summary of this cycle\'s activity (1-2 sentences)",\n'
+        '  "achievements": ["achievement 1", "achievement 2"],\n'
+        '  "failures": ["failure / problem 1"],\n'
+        '  "key_learnings": ["learning 1"],\n'
+        '  "next_cycle_suggestions": ["suggestion for next cycle 1"],\n'
         '  "self_evaluation_score": 0.75\n'
         "}\n\n"
-        "self_evaluation_score は 0.0（完全失敗）〜 1.0（完璧）の実数で答えてください。"
+        "self_evaluation_score should be a float from 0.0 (complete failure) to 1.0 (perfect)."
     )
 
 
@@ -129,8 +128,8 @@ def _build_user_prompt(working_memory: dict[str, Any]) -> str:
     """
     summary_json = json.dumps(working_memory, ensure_ascii=False, indent=2)
     return (
-        f"## 今サイクルの実行記録\n{summary_json}\n\n"
-        "上記の実行記録をもとに、このサイクルの振り返りを JSON 形式で出力してください。"
+        f"## Execution Record for This Cycle\n{summary_json}\n\n"
+        "Based on the execution record above, output the reflection for this cycle in JSON format."
     )
 
 

@@ -37,6 +37,11 @@ routing_rules:
     # Phase 1 で使用
     store_semantic: llama3.1:latest   # 知識抽出（軽量で十分）
 
+    # Phase 4 キャラクター間対話
+    map_message_emotion: qwen3.5:35b-a3b  # クオリア感情マッピング（品質重視）
+    send_character_message: null          # Action Skill（LLM 不使用）
+    check_character_messages: null        # Perception Skill（LLM 不使用）
+
   # --- カテゴリベースのフォールバック ---
   category_default:
     reasoning: qwen3.5:35b-a3b       # 推論は大型モデル

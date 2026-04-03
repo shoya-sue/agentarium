@@ -20,8 +20,9 @@ from models.llm import LLMClient
 
 logger = logging.getLogger(__name__)
 
-# デフォルトモデル（軽量判定用）
-_DEFAULT_MODEL: str = "llama3.1:latest"
+# デフォルトモデル（現在プル済みの利用可能なモデル）
+# NOTE: qwen3.5:4b / qwen3.5:14b は未プル。qwen3.5:35b-a3b を使用する
+_DEFAULT_MODEL: str = "qwen3.5:35b-a3b"
 
 # パース失敗時のフォールバック値
 _FALLBACK_SCORE: float = 0.5
@@ -79,11 +80,11 @@ def _parse_json_response(text: str) -> dict[str, Any] | None:
 def _build_system_prompt() -> str:
     """重要度評価用のシステムプロンプトを返す。"""
     return (
-        "あなたはコンテンツの重要度を客観的に評価するエキスパートアシスタントです。\n"
-        "与えられたコンテンツの情報価値・関連性・新規性を考慮し、\n"
-        "0.0（重要でない）から 1.0（非常に重要）のスコアで評価してください。\n"
-        "必ず以下の JSON 形式のみで回答してください:\n"
-        '{"importance_score": 0.0〜1.0, "reasoning": "判定理由", "topics": ["トピック1", ...]}'
+        "You are an expert assistant that objectively evaluates the importance of content.\n"
+        "Consider the informational value, relevance, and novelty of the given content, "
+        "and rate it on a scale of 0.0 (not important) to 1.0 (very important).\n"
+        "Respond ONLY in the following JSON format:\n"
+        '{"importance_score": 0.0-1.0, "reasoning": "reason", "topics": ["topic1", ...]}'
     )
 
 
@@ -94,15 +95,15 @@ def _build_user_prompt(
 ) -> str:
     """重要度評価用のユーザープロンプトを構築する。"""
     parts = [
-        "以下のコンテンツの重要度を評価してください。",
-        f"\n## ソース\n{source}",
-        f"\n## コンテンツ\n{content}",
+        "Evaluate the importance of the following content.",
+        f"\n## Source\n{source}",
+        f"\n## Content\n{content}",
     ]
 
     if context:
-        parts.append(f"\n## 追加コンテキスト\n{context}")
+        parts.append(f"\n## Additional Context\n{context}")
 
-    parts.append("\n重要度スコア・判定理由・抽出トピックを JSON で返してください。")
+    parts.append("\nReturn the importance score, reasoning, and extracted topics as JSON.")
 
     return "\n".join(parts)
 
