@@ -57,6 +57,32 @@ feeds:
     language: en
     # コンシューマーテック速報（Big Tech の動向カバー）
 
+  # ── エンタメ / カルチャー ─────────────────────────────────
+  - url: "https://automaton-media.com/feed/"
+    category: entertainment
+    language: ja
+    # ゲームメディア AUTOMATON。インディー〜AA〜AAA タイトルの日本語レポート
+
+  - url: "https://www.4gamer.net/rss/index.rss"
+    category: entertainment
+    language: ja
+    # 4Gamer.net。国内最大ゲームメディア。速報〜レビューまで幅広くカバー
+
+  - url: "https://www.animenewsnetwork.com/all/rss.xml?ann-edition=ja"
+    category: entertainment
+    language: ja
+    # Anime News Network 日本版。アニメ・マンガの国際メディア
+
+  - url: "https://natalie.mu/music/feed/news"
+    category: entertainment
+    language: ja
+    # ナタリー（音楽）。J-POP/ロック/電子音楽の速報ニュース
+
+  - url: "https://jp.ign.com/feed.xml"
+    category: entertainment
+    language: ja
+    # IGN Japan。ゲーム・映画・テレビの国際メディア日本版
+
 extraction:
   method: rss_parse
   max_items_per_feed: 20

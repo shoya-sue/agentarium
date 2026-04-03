@@ -82,14 +82,13 @@ def _parse_json_response(text: str) -> dict[str, Any] | None:
 def _build_system_prompt() -> str:
     """Skill 選択用のシステムプロンプトを返す。"""
     return (
-        "あなたは自律型 AI Agent の意思決定コアです。\n"
-        "与えられた現在の状態と利用可能なスキルのリストを分析し、\n"
-        "次に実行すべき最適なスキルを 1 つ選択してください。\n\n"
-        "必ず以下の JSON 形式のみで回答してください:\n"
+        "You are the decision-making core of an autonomous AI agent.\n"
+        "Analyze the current state and the list of available skills, "
+        "then select the single best skill to execute next.\n\n"
+        "Respond ONLY in the following JSON format:\n"
         '{"selected_skill": "skill_name", "params": {...}, '
-        '"reasoning": "理由", "confidence": 0.0〜1.0}\n\n'
-        "選択肢:\n"
-        "- 特にすべきことがない場合: "
+        '"reasoning": "reason", "confidence": 0.0-1.0}\n\n'
+        "If there is nothing to do:\n"
         '{"selected_skill": "IDLE", "params": {}, "reasoning": "...", "confidence": 1.0}'
     )
 
@@ -104,13 +103,13 @@ def _build_user_prompt(
 
     # ペルソナコンテキストが存在する場合は追加
     if persona_context and persona_context.get("persona_prompt"):
-        parts.append(f"## キャラクター設定\n{persona_context['persona_prompt']}")
+        parts.append(f"## Character Context\n{persona_context['persona_prompt']}")
 
-    parts.append(f"## 現在の状態\n{json.dumps(current_state, ensure_ascii=False, indent=2)}")
+    parts.append(f"## Current State\n{json.dumps(current_state, ensure_ascii=False, indent=2)}")
     parts.append(
-        f"## 利用可能なスキル\n{json.dumps(available_skills, ensure_ascii=False, indent=2)}"
+        f"## Available Skills\n{json.dumps(available_skills, ensure_ascii=False, indent=2)}"
     )
-    parts.append("最適なスキルを 1 つ選択し、JSON 形式で返してください。")
+    parts.append("Select the single best skill and return it as JSON.")
 
     return "\n\n".join(parts)
 

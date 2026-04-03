@@ -18,7 +18,7 @@ from models.llm import LLMClient
 logger = logging.getLogger(__name__)
 
 # デフォルトモデル（キャラクター応答は中型モデルで十分）
-_DEFAULT_MODEL: str = "qwen3.5:14b"
+_DEFAULT_MODEL: str = "qwen3.5:35b-a3b"
 
 # デフォルトプラットフォーム
 _DEFAULT_PLATFORM: str = "discord"
@@ -67,13 +67,18 @@ def _build_system_prompt(persona_context: dict[str, Any]) -> str:
     return "\n\n".join(parts)
 
 
-def _build_user_prompt(trigger: str, platform: str) -> str:
+def _build_user_prompt(
+    trigger: str,
+    platform: str,
+    source_urls: list[dict[str, str]] | None = None,
+) -> str:
     """
     user プロンプトを組み立てる。
 
     Args:
         trigger: 返答のトリガーとなったイベント/メッセージ
         platform: 出力プラットフォーム ("discord" | "x")
+        source_urls: 参考記事URLリスト（各要素: {"url": str, "title": str}）
 
     Returns:
         user プロンプト文字列
@@ -83,12 +88,33 @@ def _build_user_prompt(trigger: str, platform: str) -> str:
         "返答を生成してください。",
     )
 
-    return (
-        f"## トリガー\n{trigger}\n\n"
-        f"## 指示\n{platform_instruction}\n\n"
+    parts = [
+        f"## トリガー\n{trigger}",
+        f"## 指示\n{platform_instruction}",
+    ]
+
+    if source_urls:
+        url_lines = ["## 参考記事URL"]
+        for item in source_urls:
+            if not isinstance(item, dict):
+                continue
+            url = item.get("url", "")
+            title = str(item.get("title", "") or "")
+            if url:
+                url_lines.append(f"- {title}: {url}" if title else f"- {url}")
+        parts.append("\n".join(url_lines))
+        parts.append(
+            "## URL添付ルール\n"
+            "具体的な記事の内容・情報に言及する場合は、その記事URLを返答の末尾に1件だけ添付してください。"
+            "一般的な感想・雑談・意見のみの場合はURLは不要です。"
+        )
+
+    parts.append(
         "上記トリガーに対して、キャラクターとして自然な返答を生成してください。"
         "返答本文のみを出力してください（前置きや説明は不要です）。"
     )
+
+    return "\n\n".join(parts)
 
 
 class GenerateResponseSkill:
@@ -124,7 +150,7 @@ class GenerateResponseSkill:
                 trigger (str): 返答のトリガーとなったイベント/メッセージ（必須）
                 context_messages (list[dict] | None): 追加文脈（OpenAI messages 形式）
                 platform (str | None): "discord" or "x"（デフォルト: "discord"）
-                model (str | None): LLMモデル名（デフォルト: qwen3.5:14b）
+                model (str | None): LLMモデル名（デフォルト: qwen3.5:35b-a3b）
 
         Returns:
             {
@@ -142,6 +168,7 @@ class GenerateResponseSkill:
         trigger: str = params["trigger"]
         platform: str = params.get("platform") or _DEFAULT_PLATFORM
         model: str = params.get("model") or _DEFAULT_MODEL
+        source_urls: list[dict[str, str]] | None = params.get("source_urls") or None
         # context_messages は将来の拡張用（現在は未使用）
         _context_messages: list[dict[str, Any]] | None = params.get("context_messages")
 
@@ -157,7 +184,7 @@ class GenerateResponseSkill:
 
         # プロンプト構築
         system_prompt = _build_system_prompt(persona_context)
-        user_prompt = _build_user_prompt(trigger=trigger, platform=platform)
+        user_prompt = _build_user_prompt(trigger=trigger, platform=platform, source_urls=source_urls)
         full_prompt = f"System: {system_prompt}\n\nUser: {user_prompt}"
 
         # LLM 呼び出し（エラー時は空文字列フォールバック）

@@ -81,6 +81,8 @@ class WorkingMemory:
     last_updated_at: str = ""
     # D18: 感情状態インメモリキャッシュ。キャラクター名 → {軸名: スコア}
     emotional_states: dict[str, dict[str, float]] = field(default_factory=dict)
+    # キャラクター間メッセージ: 受信済みで未処理のメッセージリスト
+    pending_character_messages: list[dict[str, Any]] = field(default_factory=list)
 
     def _copy(self, **overrides: Any) -> "WorkingMemory":
         """全フィールドをコピーし、overrides で指定したフィールドのみ上書きした新インスタンスを返す。"""
@@ -94,6 +96,9 @@ class WorkingMemory:
             cycle_count=overrides.get("cycle_count", self.cycle_count),
             last_updated_at=overrides.get("last_updated_at", _now_iso()),
             emotional_states=overrides.get("emotional_states", dict(self.emotional_states)),
+            pending_character_messages=overrides.get(
+                "pending_character_messages", list(self.pending_character_messages)
+            ),
         )
 
     def with_goal(self, goal: str) -> "WorkingMemory":

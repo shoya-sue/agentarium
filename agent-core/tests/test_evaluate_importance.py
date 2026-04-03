@@ -166,7 +166,7 @@ class TestEvaluateImportanceSkill:
 
     @pytest.mark.asyncio
     async def test_default_model_is_4b(self):
-        """デフォルトモデルは qwen3.5:4b"""
+        """デフォルトモデルは qwen3.5:35b-a3b"""
         from skills.memory.evaluate_importance import EvaluateImportanceSkill
         from models.llm import LLMClient
 
@@ -190,7 +190,7 @@ class TestEvaluateImportanceSkill:
             "source": "test",
         })
 
-        assert captured["model"] == "qwen3.5:4b"
+        assert captured["model"] == "qwen3.5:35b-a3b"
 
     @pytest.mark.asyncio
     async def test_model_override_via_params(self):

@@ -115,9 +115,9 @@ async def list_traces(limit: int = 50):
     if not traces_dir.exists():
         return {"traces": []}
 
-    # 更新日時でソートして最新 limit 件を返す
+    # 更新日時でソートして最新 limit 件を返す（サブディレクトリを再帰的に検索）
     trace_files = sorted(
-        traces_dir.glob("*.json"),
+        traces_dir.rglob("*.json"),
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )[:limit]

@@ -16,7 +16,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # デフォルトモデル（レポート生成は中型モデルで十分）
-_DEFAULT_MODEL: str = "qwen3.5:14b"
+_DEFAULT_MODEL: str = "llama3.1:latest"
 
 
 def _build_report_prompt(topic: str, entries: list[dict[str, Any]]) -> str:

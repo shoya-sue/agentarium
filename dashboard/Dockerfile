@@ -1,7 +1,6 @@
 FROM python:3.12-slim
 WORKDIR /app
-COPY pyproject.toml .
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir fastapi uvicorn[standard] watchfiles httpx pyyaml
 COPY src/ ./src/
 COPY static/ ./static/
 EXPOSE 8080

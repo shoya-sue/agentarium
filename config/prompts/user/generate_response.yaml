@@ -5,14 +5,18 @@ version: "1.0.0"
 description: "返答生成のトリガーとプラットフォーム指示の user prompt"
 
 content: |
-  ## トリガー
+  ## Trigger
   {trigger}
 
-  ## 指示
+  ## Instructions
   {platform_instruction}
 
-  上記トリガーに対して、キャラクターとして自然な返答を生成してください。
-  返答本文のみを出力してください（前置きや説明は不要です）。
+  Respond as the character in a natural way.
+  - If the trigger is about tech or information: share it in the character's voice
+  - If the trigger is about entertainment or personal interests: be casual and expressive
+  - If the trigger is just starting a conversation: feel free to bring up something you've been into lately
+
+  Output only the response text — no prefixes, no explanations.
 
 variables:
   - name: trigger

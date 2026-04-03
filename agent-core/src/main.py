@@ -19,6 +19,7 @@ from pathlib import Path
 from core import SkillEngine
 from models.llm import LLMClient
 from skills.perception.browse_source import BrowseSourceSkill
+from skills.perception.discover_sources import DiscoverSourcesSkill
 from skills.memory.store_episodic import StoreEpisodicSkill
 from skills.memory.store_semantic import StoreSemanticSkill
 from skills.memory.recall_related import RecallRelatedSkill
@@ -50,6 +51,11 @@ from skills.memory.store_knowledge_relation import StoreKnowledgeRelationSkill
 from skills.memory.query_knowledge_graph import QueryKnowledgeGraphSkill
 from skills.reasoning.run_dialogue import RunDialogueSkill
 from skills.character.synthesize_speech import SynthesizeSpeechSkill
+# Phase 4: キャラクター間対話
+from skills.action.send_character_message import SendCharacterMessageSkill
+from skills.perception.check_character_messages import CheckCharacterMessagesSkill
+from skills.character.map_message_emotion import MapMessageEmotionSkill
+from scheduler.character_message_queue import CharacterMessageQueue
 from utils.config import load_yaml_config
 
 # ──────────────────────────────────────────────
@@ -95,7 +101,8 @@ async def build_engine(settings: dict) -> SkillEngine:
     # --- 埋め込みサーバー設定 ---
     routing_cfg = load_yaml_config(CONFIG_DIR / "llm" / "routing.yaml")
     embed_cfg = routing_cfg.get("embedding_server", {})
-    embed_url = embed_cfg.get("local_url", "http://localhost:8001")
+    # Docker 環境では EMBED_URL 環境変数（http://embed:8001）を優先する
+    embed_url = os.environ.get("EMBED_URL") or embed_cfg.get("local_url", "http://localhost:8001")
 
     # --- Skill 登録 ---
     browse_source = BrowseSourceSkill(config_dir=CONFIG_DIR)
@@ -216,20 +223,31 @@ async def _run_patrol_scheduler(engine: SkillEngine) -> None:
         await scheduler.stop()
 
 
-async def _run_agent_loop(settings: dict) -> None:
+async def _run_agent_loop(
+    settings: dict,
+    character_name: str,
+    character_message_queue: CharacterMessageQueue,
+    initial_delay_seconds: float = 0.0,
+) -> None:
     """
     Phase 2 AgentLoop を実行する非同期タスク。
 
     ENABLE_AGENT_LOOP=true の場合のみ呼び出す。
+    character_message_queue: キャラクター間メッセージを交換する共有キュー（Phase 4）
+    initial_delay_seconds: 起動をずらす待機秒数（複数キャラ同時起動時の Ollama 負荷分散用）
     エラーが発生してもログに記録してタスクを継続する。
     """
     logger = logging.getLogger(__name__)
     from scheduler.agent_loop import AgentLoop
 
-    # AgentLoop の設定（settings.yaml または環境変数から取得）
+    # AgentLoop の設定（settings.yaml から取得）
     agent_cfg = settings.get("agent", {})
-    character_name: str = agent_cfg.get("character_name", "agent_character")
     cycle_interval: float = float(agent_cfg.get("agent_loop_interval_seconds", 60.0))
+
+    # 起動オフセット（Ollama への同時リクエストを避けるため）
+    if initial_delay_seconds > 0:
+        logger.info("AgentLoop [%s] 起動を %.1f 秒遅延します", character_name, initial_delay_seconds)
+        await asyncio.sleep(initial_delay_seconds)
 
     # --- Phase 2 Skill インスタンス生成 ---
     ollama_cfg = settings.get("ollama", {})
@@ -244,7 +262,8 @@ async def _run_agent_loop(settings: dict) -> None:
     qdrant_port = int(qdrant_cfg.get("port", 6333))
 
     routing_cfg = load_yaml_config(CONFIG_DIR / "llm" / "routing.yaml")
-    embed_url = routing_cfg.get("embedding_server", {}).get("local_url", "http://localhost:8001")
+    # Docker 環境では EMBED_URL 環境変数（http://embed:8001）を優先する
+    embed_url = os.environ.get("EMBED_URL") or routing_cfg.get("embedding_server", {}).get("local_url", "http://localhost:8001")
 
     # キャラクタースキル
     build_persona_context = BuildPersonaContextSkill(config_dir=CONFIG_DIR)
@@ -324,14 +343,30 @@ async def _run_agent_loop(settings: dict) -> None:
     # マルチエージェント対話スキル（Phase 4）
     run_dialogue = RunDialogueSkill(llm_client=llm)
 
+    # キャラクター間リアクティブ対話スキル（Phase 4）
+    send_character_message = SendCharacterMessageSkill(
+        queue=character_message_queue,
+        config_dir=CONFIG_DIR,
+    )
+    check_character_messages = CheckCharacterMessagesSkill(
+        queue=character_message_queue,
+    )
+    map_message_emotion = MapMessageEmotionSkill(
+        llm_client=llm,
+        config_dir=CONFIG_DIR,
+    )
+
     # VOICEVOX TTS スキル（Phase 4）
     voicevox_url = os.environ.get("VOICEVOX_URL", "http://localhost:50021")
     synthesize_speech = SynthesizeSpeechSkill(
-        voicevox_url=voicevox_url, data_dir=DATA_DIR
+        voicevox_url=voicevox_url, output_dir=DATA_DIR / "outputs" / "speech"
     )
 
     # browse_source ラッパー（AgentLoop から各フィードを個別スキルとして選択可能にする）
     browse_source_skill = BrowseSourceSkill(config_dir=CONFIG_DIR)
+
+    # RSS ソース自律発見スキル（Phase 5）
+    discover_sources = DiscoverSourcesSkill(config_dir=CONFIG_DIR)
 
     async def _fetch_hacker_news(params: dict) -> list:
         return await browse_source_skill.run({"source_id": "hacker_news", "max_items": params.get("max_items", 20)})
@@ -389,6 +424,12 @@ async def _run_agent_loop(settings: dict) -> None:
         "run_dialogue": run_dialogue.run,
         # VOICEVOX TTS（Phase 4）
         "synthesize_speech": synthesize_speech.run,
+        # キャラクター間リアクティブ対話（Phase 4）
+        "send_character_message": send_character_message.run,
+        "check_character_messages": check_character_messages.run,
+        "map_message_emotion": map_message_emotion.run,
+        # ソース自律発見（Phase 5）
+        "discover_sources": discover_sources.run,
     }
 
     loop = AgentLoop(
@@ -396,6 +437,7 @@ async def _run_agent_loop(settings: dict) -> None:
         cycle_interval_seconds=cycle_interval,
         config_dir=CONFIG_DIR,
         skill_registry=skill_registry,
+        traces_dir=TRACES_DIR,
     )
 
     # PresenceMonitor — maintain_presence を定期的に呼び出してプレゼンス状態を管理
@@ -409,12 +451,12 @@ async def _run_agent_loop(settings: dict) -> None:
         await presence_monitor.start()
         await loop.start()
     except asyncio.CancelledError:
-        logger.info("AgentLoop タスクがキャンセルされました")
+        logger.info("AgentLoop [%s] タスクがキャンセルされました", character_name)
         await loop.stop()
         await presence_monitor.stop()
         raise
     except Exception as exc:
-        logger.error("AgentLoop でエラー: %s", exc)
+        logger.error("AgentLoop [%s] でエラー: %s", character_name, exc)
         await loop.stop()
         await presence_monitor.stop()
 
@@ -436,12 +478,35 @@ async def main() -> None:
 
     engine = await build_engine(settings)
 
+    # Phase 4: キャラクター間メッセージキュー（全 AgentLoop で共有）
+    shared_character_queue = CharacterMessageQueue()
+
     # Phase 1: PatrolScheduler タスクを作成
     tasks = [asyncio.create_task(_run_patrol_scheduler(engine), name="patrol_scheduler")]
 
     # Phase 2: ENABLE_AGENT_LOOP=true の場合のみ AgentLoop を追加
+    # characters リストが設定されていれば複数キャラを並行起動、なければ単一キャラ
     if enable_agent_loop:
-        tasks.append(asyncio.create_task(_run_agent_loop(settings), name="agent_loop"))
+        agent_cfg = settings.get("agent", {})
+        cycle_interval: float = float(agent_cfg.get("agent_loop_interval_seconds", 60.0))
+        characters: list[str] = agent_cfg.get(
+            "characters",
+            [agent_cfg.get("character_name", "agent_character")],
+        )
+        for i, char in enumerate(characters):
+            # 複数キャラの場合は半サイクル分ずつずらして Ollama 負荷を分散
+            delay = (cycle_interval / len(characters)) * i
+            tasks.append(
+                asyncio.create_task(
+                    _run_agent_loop(
+                        settings,
+                        char,
+                        character_message_queue=shared_character_queue,
+                        initial_delay_seconds=delay,
+                    ),
+                    name=f"agent_loop_{char}",
+                )
+            )
 
     try:
         # どちらかのタスクが失敗してももう一方は継続する

@@ -191,7 +191,7 @@ class UpdateEmotionalStateSkill:
             )
             if affect_model:
                 return affect_model
-        return "qwen3.5:4b"  # D19: デフォルトは 4B モデル
+        return "qwen3.5:35b-a3b"  # NOTE: 4b/14b 未プル、利用可能モデルを使用
 
     async def run(self, params: dict[str, Any]) -> dict[str, Any]:
         """

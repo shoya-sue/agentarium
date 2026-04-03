@@ -20,30 +20,39 @@ ollama_defaults:
 
 routing_rules:
   # --- 明示的ルール（Skill名で直接指定）---
+  # 利用可能モデル（2026-04-02確認）:
+  #   llama3.1:latest    4.9GB  軽量・高速  評価・抽出系に最適
+  #   gemma3:27b        17.4GB  中型・バランス  意思決定・計画に最適
+  #   qwen3.5:35b-a3b   23.9GB  高品質（MoE）  品質重視タスクのみ
   explicit:
-    # Phase 2 Skill（Batch 3 で有効化）
-    select_skill: qwen3.5:35b-a3b    # 意思決定コア（大型モデル必須）
-    plan_task: qwen3.5:35b-a3b       # 計画立案（大型モデル必須）
-    generate_goal: qwen3.5:35b-a3b   # 目標生成
-    reflect: qwen3.5:14b             # 振り返り（中型モデル）
-    generate_response: qwen3.5:14b   # キャラクター応答生成
-    send_discord: null               # LLM 不使用
-    compress_memory: qwen3.5:14b     # 記憶圧縮
+    select_skill: gemma3:27b          # 意思決定コア（速度と品質のバランス）
+    plan_task: gemma3:27b             # 計画立案
+    generate_goal: qwen3.5:35b-a3b   # 目標生成（品質重視）
+    reflect: llama3.1:latest          # 振り返り（軽量で十分）
+    generate_response: qwen3.5:35b-a3b  # キャラクター応答生成（品質重視）
+    send_discord: null                # LLM 不使用
+    compress_memory: llama3.1:latest  # 記憶圧縮（軽量で十分）
+    evaluate_importance: llama3.1:latest  # 重要度評価（軽量・高速）
 
     # Phase 1 で使用
-    store_semantic: qwen3.5:4b       # 知識抽出
+    store_semantic: llama3.1:latest   # 知識抽出（軽量で十分）
+
+    # Phase 4 キャラクター間対話
+    map_message_emotion: qwen3.5:35b-a3b  # クオリア感情マッピング（品質重視）
+    send_character_message: null          # Action Skill（LLM 不使用）
+    check_character_messages: null        # Perception Skill（LLM 不使用）
 
   # --- カテゴリベースのフォールバック ---
   category_default:
-    reasoning: qwen3.5-35b-a3b       # 推論は大型モデル
-    character: qwen3.5-14b           # キャラクター応答は中型
-    perception: qwen3.5-4b           # 関連性判定等は軽量
-    memory: qwen3.5-4b               # 知識抽出等は軽量
+    reasoning: qwen3.5:35b-a3b       # 推論は大型モデル
+    character: qwen3.5:35b-a3b       # キャラクター応答（品質重視）
+    perception: llama3.1:latest      # 関連性判定等（軽量で十分）
+    memory: llama3.1:latest          # 知識抽出等（軽量で十分）
     action: null                      # Action Skill は基本的に LLM 不要
     browser: null                     # Browser Skill は LLM 不要
 
   # --- 最終フォールバック ---
-  default: qwen3.5-4b
+  default: llama3.1:latest
 
 # --- 埋め込みモデル（Phase 0 V2 検証済み）---
 # P0-U2 解決: sentence-transformers を FastAPI サーバーとして Docker コンテナ分離

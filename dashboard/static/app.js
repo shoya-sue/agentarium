@@ -129,14 +129,7 @@ function buildTraceItem(trace) {
     ? `${trace.duration_ms}ms`
     : (trace.elapsed_seconds != null ? `${(trace.elapsed_seconds * 1000).toFixed(0)}ms` : '');
 
-  // サマリー（エラーメッセージ or 出力の最初の部分）
-  let summary = '';
-  if (trace.error) {
-    summary = trace.error;
-  } else if (trace.output && typeof trace.output === 'object') {
-    const firstVal = Object.values(trace.output)[0];
-    summary = firstVal ? String(firstVal).slice(0, 80) : '';
-  }
+  const inlineDetail = buildInlineDetail(trace);
 
   return `
     <div class="trace-item" data-trace-id="${escHtml(traceId)}">
@@ -146,12 +139,88 @@ function buildTraceItem(trace) {
           <span class="trace-skill-name">${escHtml(skillName)}</span>
           <span class="status-pill ${escHtml(status)}">${escHtml(status)}</span>
           <span class="trace-duration">${escHtml(durationMs)}</span>
+          <span class="trace-time">${escHtml(startedAt)}</span>
         </div>
-        <div class="trace-time">${escHtml(startedAt)}</div>
-        ${summary ? `<div class="trace-summary">${escHtml(summary)}</div>` : ''}
+        ${inlineDetail}
       </div>
     </div>
   `;
+}
+
+function buildInlineDetail(trace) {
+  const parts = [];
+  const extra = trace.extra || {};
+  const output = extra.output || {};
+  const llmCalls = extra.llm_calls || [];
+
+  if (trace.error) {
+    parts.push(`<div class="inline-error">${escHtml(trace.error)}</div>`);
+    return parts.join('');
+  }
+
+  const skillName = trace.skill_name || '';
+
+  // フェッチ系スキル: 件数とタイトルリスト
+  if (['fetch_hacker_news', 'fetch_rss', 'fetch_github_trending'].includes(skillName)) {
+    const count = output.count != null ? output.count : '?';
+    const titles = Array.isArray(output.titles) ? output.titles : [];
+    parts.push(`<div class="inline-count">取得: ${escHtml(String(count))}件</div>`);
+    if (titles.length > 0) {
+      const items = titles.map(t => `<div class="inline-item">${escHtml(t)}</div>`).join('');
+      parts.push(`<div class="inline-items">${items}</div>`);
+    }
+  }
+
+  // 重要度評価
+  if (skillName === 'evaluate_importance') {
+    const score = output.importance_score != null ? Number(output.importance_score).toFixed(2) : '?';
+    const shouldStore = output.should_store ? '✓ 保存' : '✗ スキップ';
+    const topics = Array.isArray(output.topics) ? output.topics : [];
+    parts.push(`<div class="inline-score">重要度: <b>${escHtml(score)}</b> ${escHtml(shouldStore)}</div>`);
+    if (topics.length > 0) {
+      parts.push(`<div class="inline-topics">${topics.map(t => `<span class="inline-topic">${escHtml(t)}</span>`).join('')}</div>`);
+    }
+    if (output.reasoning) {
+      parts.push(`<div class="inline-reasoning">${escHtml(String(output.reasoning).slice(0, 120))}</div>`);
+    }
+  }
+
+  // スキル選択
+  if (skillName === 'select_skill') {
+    const selected = output.selected_skill || '?';
+    const conf = output.confidence != null ? `(${Number(output.confidence).toFixed(2)})` : '';
+    parts.push(`<div class="inline-selected">→ <b>${escHtml(selected)}</b> ${escHtml(conf)}</div>`);
+    if (output.reasoning) {
+      parts.push(`<div class="inline-reasoning">${escHtml(String(output.reasoning).slice(0, 120))}</div>`);
+    }
+  }
+
+  // 振り返り
+  if (skillName === 'reflect') {
+    const score = output.self_evaluation_score != null ? Number(output.self_evaluation_score).toFixed(2) : '?';
+    parts.push(`<div class="inline-score">自己評価: <b>${escHtml(score)}</b></div>`);
+    if (output.cycle_summary) {
+      parts.push(`<div class="inline-reasoning">${escHtml(String(output.cycle_summary).slice(0, 150))}</div>`);
+    }
+  }
+
+  // キャラクター応答
+  if (skillName === 'generate_response' && output.response_text) {
+    const char = output.character_name ? `[${output.character_name}]` : '';
+    const platform = output.platform ? ` → ${output.platform}` : '';
+    parts.push(`<div class="inline-response-header">${escHtml(char)}${escHtml(platform)}</div>`);
+    parts.push(`<div class="inline-response">${escHtml(String(output.response_text))}</div>`);
+  }
+
+  // LLM 呼び出し情報（全スキル共通）
+  if (llmCalls.length > 0) {
+    const totalTokens = llmCalls.reduce((s, c) => s + (c.output_tokens || 0), 0);
+    const totalMs = llmCalls.reduce((s, c) => s + (c.duration_ms || 0), 0);
+    const model = llmCalls[0].model || '';
+    parts.push(`<div class="inline-llm">LLM: ${escHtml(model)} · ${escHtml(String(totalTokens))}tok · ${escHtml(String(totalMs))}ms</div>`);
+  }
+
+  return parts.join('');
 }
 
 // ─── トレース選択 → LLM I/O ビューア ────────────────────

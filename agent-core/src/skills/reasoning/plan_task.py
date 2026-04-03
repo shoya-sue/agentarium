@@ -82,21 +82,21 @@ def _parse_json_response(text: str) -> dict[str, Any] | None:
 def _build_system_prompt(max_steps: int) -> str:
     """計画立案用のシステムプロンプトを返す。"""
     return (
-        "あなたは AI Agent の実行計画を立案するプランナーです。\n"
-        "指定された目標を達成するための、具体的な実行ステップを生成してください。\n\n"
-        "必ず以下の JSON 形式のみで回答してください:\n"
+        "You are a planner that creates execution plans for an AI Agent.\n"
+        "Generate concrete execution steps to achieve the given goal.\n\n"
+        "Respond ONLY in the following JSON format:\n"
         "{\n"
         '  "steps": [\n'
         '    {"skill": "skill_name", "params": {...}, '
-        '"expected_outcome": "期待する結果", "order": 0},\n'
+        '"expected_outcome": "expected result", "order": 0},\n'
         "    ...\n"
         "  ],\n"
         '  "estimated_duration_sec": 60\n'
         "}\n\n"
-        "制約:\n"
-        f"- 最大 {max_steps} ステップ以内に収めること\n"
-        "- 利用可能なスキルのみ使用すること\n"
-        "- ステップは依存関係を考慮した順序にすること"
+        "Constraints:\n"
+        f"- Keep to a maximum of {max_steps} steps\n"
+        "- Only use available skills\n"
+        "- Order steps considering dependencies"
     )
 
 
@@ -107,16 +107,16 @@ def _build_user_prompt(
 ) -> str:
     """計画立案用のユーザープロンプトを構築する。"""
     parts: list[str] = [
-        f"## 目標\n{goal}",
-        f"## 利用可能なスキル\n{json.dumps(available_skills, ensure_ascii=False, indent=2)}",
+        f"## Goal\n{goal}",
+        f"## Available Skills\n{json.dumps(available_skills, ensure_ascii=False, indent=2)}",
     ]
 
     if context:
         parts.append(
-            f"## 追加コンテキスト\n{json.dumps(context, ensure_ascii=False, indent=2)}"
+            f"## Additional Context\n{json.dumps(context, ensure_ascii=False, indent=2)}"
         )
 
-    parts.append("上記の目標を達成するための実行計画を JSON 形式で返してください。")
+    parts.append("Return the execution plan to achieve the goal above in JSON format.")
 
     return "\n\n".join(parts)
 

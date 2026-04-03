@@ -160,6 +160,7 @@ class BuildLlmContextSkill:
         sections_used.append("task")
 
         # 想起した記憶（スコア降順）
+        # recall_related の出力形式: {"point_id": int, "score": float, "payload": {...}}
         if recalled_memories:
             sorted_memories = sorted(
                 recalled_memories,
@@ -168,10 +169,15 @@ class BuildLlmContextSkill:
             )
             memory_lines = ["## 関連する記憶"]
             for mem in sorted_memories:
-                content = mem.get("content", "")
+                payload = mem.get("payload") or {}
+                content = payload.get("content_preview", "") or mem.get("content", "")
                 score = mem.get("score", 0.0)
+                source_url = payload.get("source_url", "")
                 if content:
-                    memory_lines.append(f"- [{score:.2f}] {content}")
+                    line = f"- [{score:.2f}] {content}"
+                    if source_url:
+                        line += f" ({source_url})"
+                    memory_lines.append(line)
             parts.append("\n".join(memory_lines))
             sections_used.append("recalled_memories")
 

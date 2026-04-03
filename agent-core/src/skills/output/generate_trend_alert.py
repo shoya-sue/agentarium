@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 MIN_ALERT_SCORE: float = 0.7
 
 # デフォルトモデル（短文アラートは小型モデルで十分）
-_DEFAULT_MODEL: str = "qwen3.5:14b"
+_DEFAULT_MODEL: str = "llama3.1:latest"
 
 
 def _build_alert_prompt(topic: str, score: float, entries: list[dict[str, Any]]) -> str:

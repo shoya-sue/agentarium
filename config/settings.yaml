@@ -6,17 +6,25 @@ agent:
   version: "0.1.0"
   log_level: "${LOG_LEVEL:-INFO}"
   data_dir: "data"
+  # AgentLoop で使用するキャラクター名（config/characters/{name}.yaml が必要）
+  # characters リストが優先される（複数キャラを並行起動）
+  character_name: "zephyr"
+  characters:
+    - "zephyr"
+    - "lynx"
+  # AgentLoop サイクル間隔（秒）。短くするほど判断が速くなる
+  agent_loop_interval_seconds: 15
 
 ollama:
   base_url: "${OLLAMA_BASE_URL:-http://localhost:11434}"
   default_model: "qwen3.5:35b-a3b"
   embed_model: "nomic-embed-text"  # Phase 0 で選定
   num_ctx: 16384
-  timeout_seconds: 120
+  timeout_seconds: 300
 
 qdrant:
   host: "${QDRANT_HOST:-localhost}"
-  port: 16333
+  port: "${QDRANT_PORT:-16333}"
   grpc_port: 16334
   collections:
     episodic: "episodic"
@@ -54,3 +62,15 @@ discord:
   max_message_length: 2000
   channels:
     general: ""  # 環境変数 DISCORD_CHANNEL_GENERAL で上書き
+  # キャラクター別 Webhook（Phase 4）。未設定時は webhook_url にフォールバック
+  character_webhooks:
+    zephyr: "${DISCORD_WEBHOOK_URL_ZEPHYR:-}"
+    lynx: "${DISCORD_WEBHOOK_URL_LYNX:-}"
+
+speech:
+  output_dir: "data/outputs/speech"
+  # WAV ローテーション設定
+  # max_wav_files: 保持するファイル数の上限（古い順に削除）。null = 無制限
+  max_wav_files: 100
+  # max_wav_age_hours: この時間を超えた WAV を削除（毎回の run() 時に実行）。null = 無制限
+  max_wav_age_hours: 24

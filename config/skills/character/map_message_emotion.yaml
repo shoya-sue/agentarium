@@ -1,0 +1,107 @@
+name: map_message_emotion
+version: "1.0.0"
+category: character
+phase: 4
+description: "受信メッセージをクオリア構造学に基づいて感情軸スコアにマッピングする"
+
+input:
+  type: object
+  required: [character_name, messages]
+  properties:
+    character_name:
+      type: string
+      description: "受信キャラクター名 (zephyr / lynx)"
+      enum: [zephyr, lynx]
+    messages:
+      type: array
+      description: "受信したメッセージのリスト"
+      items:
+        type: object
+        required: [from_character, content]
+        properties:
+          from_character:
+            type: string
+            description: "送信キャラクター名"
+          content:
+            type: string
+            description: "メッセージ本文"
+          timestamp:
+            type: string
+            description: "送信タイムスタンプ（ISO 8601）"
+          metadata:
+            type: object
+            description: "付加メタデータ（任意）"
+    persona_context:
+      type: object
+      description: "現在のペルソナコンテキスト（任意）"
+      nullable: true
+    model:
+      type: string
+      description: "使用する LLM モデル名（省略時は routing.yaml の map_message_emotion モデル）"
+      nullable: true
+
+output:
+  type: object
+  required: [character_name, messages_processed, deltas_applied, axes_updated, updated_state]
+  properties:
+    character_name:
+      type: string
+      description: "受信キャラクター名"
+    messages_processed:
+      type: integer
+      description: "処理したメッセージ数（エラー時は 0）"
+    deltas_applied:
+      type: array
+      description: "適用された感情デルタの詳細リスト"
+      items:
+        type: object
+        properties:
+          axis:
+            type: string
+            description: "感情軸名"
+          delta:
+            type: number
+            description: "適用されたデルタ値（-1.0〜1.0）"
+          new_score:
+            type: number
+            description: "更新後のスコア（0.0〜1.0）"
+          reason:
+            type: string
+            description: "LLM が生成した変化理由"
+    axes_updated:
+      type: array
+      description: "今回更新された感情軸名のリスト"
+      items:
+        type: string
+    updated_state:
+      type: object
+      description: "更新後の全感情軸スコア（軸名 → 0.0〜1.0）"
+      additionalProperties:
+        type: number
+    qualia_description:
+      type: string
+      description: "クオリア記述（LLM が生成した主観的体験の説明）"
+    error:
+      type: string
+      description: "エラーメッセージ（失敗時のみ）"
+
+config:
+  characters_dir: "config/characters"
+  state_dir: "data/state"
+
+llm:
+  backend: "ollama"
+  model: "qwen3.5:35b-a3b"
+  temperature: 0.7
+  max_tokens: 1024
+
+safety:
+  ref: "config/safety.yaml#skill_limits.default"
+
+trace:
+  log_fields: [character_name, messages_processed, axes_updated, duration_ms, error]
+
+error_handling:
+  llm_error: "deltas_applied=[], messages_processed=0, error=<message> を返す（感情状態は更新しない）"
+  json_parse_error: "同上"
+  missing_character_yaml: "ValueError を raise する"
